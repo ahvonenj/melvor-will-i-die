@@ -11,9 +11,11 @@ export class CombatResolver {
     tabButton = null;
     tabContent = null;
     safetyFactorElement = null;
+    equationPopup = null;
 
     safetyFactor = 1.02;
     skipRequirements = false;
+    showCalculations = false;
 
     pendingRecalculation = false;
     
@@ -60,6 +62,25 @@ export class CombatResolver {
             return;
         }
 
+        // EQUATION POPUP STUFF
+        const equationPopupVarName = createElement('div', { id: "will-i-die-equation-popup-name" });
+        const equationPopupVarIntermediary = createElement('div', { id: "will-i-die-equation-popup-intermediary" });
+        const equationPopupVarValue = createElement('div', { id: "will-i-die-equation-popup-value" });
+        const equationPopupVarDescription = createElement('div', { id: "will-i-die-equation-popup-desc" });
+        const equationPopup = createElement('div', { id: "will-i-die-equation-popup", classList: ["wid-eq-popup-invisible"] });
+
+        equationPopup.appendChild(equationPopupVarName);
+        equationPopup.appendChild(equationPopupVarIntermediary);
+        equationPopup.appendChild(equationPopupVarValue);
+        equationPopup.appendChild(equationPopupVarDescription);
+        document.body.appendChild(equationPopup);
+        this.equationPopup = equationPopup;
+
+
+
+        // ! EQUATION POPUP STUFF !
+
+
         // Tab element
         this.tabComponent = createElement('div', {
             id: "will-i-die-header-tab",
@@ -101,7 +122,40 @@ export class CombatResolver {
 
         this.tabContent = createElement('div', {
             classList: ["block-content", "block-content-full", "pt-0", "combat-resolver-tab-content"]
-        })
+        });
+
+        this.tabContent.onmouseover = (e) => {
+            if(!this.currentSurvivabilityState)
+                return;
+
+            if(e.target.classList.contains('cr-eq-var')) {
+                const equationId = Array.from(e.target.classList).find(c => c.indexOf('cr-eq-var') > -1 && c.length > 9);
+                
+                const vars = this.currentSurvivabilityState.maxHitReason.vars[equationId];
+                const name = vars.name;
+                const value = vars.value;
+                const intermediary = vars.intermediary ? ` = ${vars.intermediary} = ` : ' = ';
+                const description = vars.description;
+
+                this.equationPopup.children[0].innerText = name;
+                this.equationPopup.children[1].innerText = intermediary;
+                this.equationPopup.children[2].innerText = value;
+                this.equationPopup.children[3].innerText = ` (${description})`;
+
+                this.equationPopup.classList.remove('wid-eq-popup-invisible');
+                this.equationPopup.style.top = `${e.clientY - (this.equationPopup.offsetHeight) - 10}px`;
+                this.equationPopup.style.left = `${e.clientX - (this.equationPopup.offsetWidth / 2)}px`;
+            }
+        }
+
+        this.tabContent.onmouseout = (e) => {
+            const targetClasses = Array.from(e.target.classList);
+            const targetClassesFilter = targetClasses.filter(c => c.indexOf('cr-eq-var') > -1);
+
+            if(targetClassesFilter.length > 0) {
+                this.equationPopup.classList.add('wid-eq-popup-invisible');
+            }
+        }
 
         dropdown.appendChild(this.safetyFactorElement);
         dropdown.appendChild(this.tabContent);
@@ -206,7 +260,8 @@ export class CombatResolver {
                 <span class = "cr-hl cr-hl-dmg">${effectiveMaxHit}</span> after damage reduction.<br/><br/>As
                 <span class = "cr-hl cr-hl-dmg">${effectiveMaxHit}</span> is greater than your auto-eat threshold of 
                 <span class = "cr-hl cr-hl-health">${autoEatThreshold}</span>,
-                <span class = "cr-hl cr-hl-enemy">${maxHitReason.monsterName}</span> could kill you.`;
+                <span class = "cr-hl cr-hl-enemy">${maxHitReason.monsterName}</span> could kill you.<br/><br/>` +
+                `${this.showCalculations ? maxHitReason.equation : ''}`;
             }
             
 
@@ -243,7 +298,8 @@ export class CombatResolver {
                 <span class = "cr-hl cr-hl-dmg">${effectiveMaxHit}</span> after damage reduction.<br/><br/>As
                 <span class = "cr-hl cr-hl-dmg">${effectiveMaxHit}</span> is less than your auto-eat threshold of 
                 <span class = "cr-hl cr-hl-health">${autoEatThreshold}</span>,
-                <span class = "cr-hl cr-hl-enemy">${maxHitReason.monsterName}</span> shouldn't be able to kill you.`;
+                <span class = "cr-hl cr-hl-enemy">${maxHitReason.monsterName}</span> shouldn't be able to kill you.` +
+                `${this.showCalculations ? maxHitReason.equation : ''}`;
             }
 
             
@@ -495,7 +551,7 @@ export class CombatResolver {
                 return;
             }
 
-            if(monster.maxHit > mostDangerousMonster.maxHit || monster.effectiveMaxHit > mostDangerousMonster.effectiveMaxHit) {
+            if(monster.effectiveMaxHit > mostDangerousMonster.effectiveMaxHit) {
                 mostDangerousMonster = monster;
             }
         });

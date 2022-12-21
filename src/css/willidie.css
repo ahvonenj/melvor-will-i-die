@@ -107,37 +107,47 @@
     font-weight: bold;
 }
 
-.cr-hl-warn {
-    color: #e56767;
+.cr-hl-warn { color: #e56767; }
+.cr-hl-ok { color: #27ae60; }
+.cr-hl-enemy { color: #d35400; }
+.cr-hl-area { color: rgb(241, 196, 15); }
+.cr-hl-dmg { color: #e74c3c; }
+.cr-hl-block { color: #2980b9; }
+.cr-hl-spec { color: #9b59b6; }
+.cr-hl-health { color: #16a085; }
+
+.cr-eq-container {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 10pt;
 }
 
-.cr-hl-ok {
-    color: #27ae60;
+.cr-eq-var {
+    transform-origin: 50% 50%;
+    color: #2bcbba;
+    display: inline-block;
 }
 
-.cr-hl-enemy {
-    color: #d35400;
+.cr-eq-var:hover {
+    cursor: pointer;
+    transform: scale(1.2);
+    font-weight: bold;
 }
 
-.cr-hl-area {
-    color: rgb(241, 196, 15);
-}
+/*
+.cr-eq-var-1 { color: #e74c3c; }
+.cr-eq-var-2 { color: #e56767; }
+.cr-eq-var-3 { color: #27ae60; }
+.cr-eq-var-4 { color: #d35400; }
+.cr-eq-var-5 { color: rgb(241, 196, 15); }
+.cr-eq-var-6 { color: #e74c3c; }
+.cr-eq-var-7 { color: #2980b9; }
+.cr-eq-var-8 { color: #9b59b6; }
+.cr-eq-var-9 { color: #16a085; }
+.cr-eq-var-10 { color: #07b0bf; }
+*/
 
-.cr-hl-dmg {
-    color: #e74c3c;
-}
-
-.cr-hl-block {
-    color: #2980b9;
-}
-
-.cr-hl-spec {
-    color: #9b59b6;
-}
-
-.cr-hl-health {
-    color: #16a085;
-}
+.cr-eq-cal { color: #d1d8e0; }
+.cr-eq-val { color: #fd9644; }
 
 
 @keyframes wid-recalc-pulse {
@@ -155,4 +165,78 @@
         transform: scale(0.95);
         box-shadow: 0 0 0 0 rgba(241, 196, 15, 0);
     }
+}
+
+#will-i-die-equation-popup {
+    position: absolute;
+    width: auto;
+    height: 35px;
+    background-color: #232a35;
+    border: solid 1px #fff;
+    z-index: 9999;
+    gap: 5px;
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    font-size: 12pt;
+    padding: 10px;
+    color: white;
+
+    display: -ms-flexbox;
+    display: -webkit-flex;
+    display: flex;
+    -webkit-flex-direction: row;
+    -ms-flex-direction: row;
+    flex-direction: row;
+    -webkit-flex-wrap: nowrap;
+    -ms-flex-wrap: nowrap;
+    flex-wrap: nowrap;
+    -webkit-justify-content: center;
+    -ms-flex-pack: center;
+    justify-content: center;
+    -webkit-align-content: center;
+    -ms-flex-line-pack: center;
+    align-content: center;
+    -webkit-align-items: center;
+    -ms-flex-align: center;
+    align-items: center;
+}
+
+#will-i-die-equation-popup.wid-eq-popup-invisible {
+    display: none;
+}
+
+#will-i-die-equation-popup-name {
+    -webkit-order: 0;
+    -ms-flex-order: 0;
+    order: 0;
+    -webkit-flex: 1 0 auto;
+    -ms-flex: 1 0 auto;
+    flex: 1 0 auto;
+    -webkit-align-self: center;
+    -ms-flex-item-align: center;
+    align-self: center;
+}
+
+#will-i-die-equation-popup-intermediary {
+    -webkit-order: 0;
+    -ms-flex-order: 0;
+    order: 0;
+    -webkit-flex: 1 0 auto;
+    -ms-flex: 1 0 auto;
+    flex: 1 0 auto;
+    -webkit-align-self: center;
+    -ms-flex-item-align: center;
+    align-self: center;
+}
+
+#will-i-die-equation-popup-value {
+    -webkit-order: 0;
+    -ms-flex-order: 0;
+    order: 0;
+    -webkit-flex: 1 0 auto;
+    -ms-flex: 1 0 auto;
+    flex: 1 0 auto;
+    -webkit-align-self: center;
+    -ms-flex-item-align: center;
+    align-self: center;
 }

@@ -8,6 +8,7 @@ export async function setup(ctx) {
 
     const safetySettings = ctx.settings.section('Safety Factor');
     const requirementSettings = ctx.settings.section('Requirements');
+    const calculationDisplaySettings = ctx.settings.section('Calculation display');
     const debugSettings = ctx.settings.section('Debug');
 
     safetySettings.add({
@@ -32,6 +33,18 @@ export async function setup(ctx) {
         default: false,
         onChange: (newValue) => { 
             combatResolver.skipRequirements = newValue; 
+            combatResolver.recalculateSurvivability("Settings changed"); 
+        }
+    });
+
+    calculationDisplaySettings.add({
+        type: 'switch',
+        name: 'show_calculations',
+        label: 'When enabled, full-ish calculation details will be displayed in the Will I Die? dropdown-menu',
+        hint: 'You can hover mouse over the variables to expand on them',
+        default: false,
+        onChange: (newValue) => { 
+            combatResolver.showCalculations = newValue; 
             combatResolver.recalculateSurvivability("Settings changed"); 
         }
     });
