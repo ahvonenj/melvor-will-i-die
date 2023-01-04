@@ -11,18 +11,24 @@ export class CombatResolver {
     tabButton = null;
     tabContent = null;
     safetyFactorElement = null;
+    monsterTabContainer = null;
     equationPopup = null;
 
     safetyFactor = 1.02;
+    afflictionFactor = 20;
     skipRequirements = false;
     showCalculations = false;
 
     pendingRecalculation = false;
+
+    selectedMonsterTab = 0;
     
     headerComponentCreated = false;
     _debug = false;
 
     _ctx = null;
+
+    _tabOpen = false;
 
     _debugValues = {
         monsters: [],
@@ -88,11 +94,17 @@ export class CombatResolver {
         });
 
         // Button element for the tab
-        this.tabButton = createElement('button', {
+        const tabButton = createElement('button', {
             id: "will-i-die-header-tab-btn",
             classList: ["btn", "btn-sm", "btn-dual"],
             attributes: [['data-toggle', 'dropdown']]
         });
+
+        tabButton.onclick = () => {
+            this._tabOpen = true;
+        }
+
+        this.tabButton = tabButton;
 
         this.tabComponent.appendChild(this.tabButton);
 
@@ -111,6 +123,19 @@ export class CombatResolver {
             classList: ["wid-safety-factor"],
             text: `Safety Factor: ${this.safetyFactor}x`
         });
+
+        this.monsterTabContainer = createElement('div', {
+            classList: ["wid-monster-tabs"]
+        });
+
+        this.monsterTabContainer.onclick = (e) => {
+            if(e.target.classList.contains('wid-monster-tab')) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.handleMonsterTabClick(e);
+            }
+            
+        }
 
         header.onclick = () => {
             this._printDebugValues();
@@ -158,12 +183,35 @@ export class CombatResolver {
         }
 
         dropdown.appendChild(this.safetyFactorElement);
+        dropdown.appendChild(this.monsterTabContainer);
         dropdown.appendChild(this.tabContent);
         this.tabComponent.appendChild(dropdown);
         targetTab.after(this.tabComponent);
 
         this.headerComponentCreated = true;
 
+        this._reRender();
+    }
+
+    _fastResetTabContents() {
+        if(!this._tabOpen) return;
+        if(!this.currentSurvivabilityState) return;
+
+        const mostDangerousMonster = this.currentSurvivabilityState.uniqueMonsters[0];
+
+        if(!mostDangerousMonster) return;
+
+        this.currentSurvivabilityState = {
+            ...this.currentSurvivabilityState,
+            maxHit: mostDangerousMonster.maxHit,
+            effectiveMaxHit: mostDangerousMonster.effectiveMaxHit,
+            maxHitReason: mostDangerousMonster.whatMakesMeDangerous(),
+            canDie: mostDangerousMonster.effectiveMaxHit >= this.currentSurvivabilityState.autoEatThreshold,
+            playerSelfHit: mostDangerousMonster.effectiveDamageTakenPerAttack
+        }
+
+        this._tabOpen = false;
+        this.selectedMonsterTab = 0;
         this._reRender();
     }
 
@@ -197,6 +245,27 @@ export class CombatResolver {
         }
     }
 
+    _reRenderMonsterTabs() {
+        if(!this.currentSurvivabilityState) {
+            this.monsterTabContainer.classList.add('wid-monster-tabs-invisible');
+            return;
+        }
+
+        this.monsterTabContainer.classList.remove('wid-monster-tabs-invisible');
+
+        let buttons = ``;
+        let i = 1;
+
+        for(const widMonster of this.currentSurvivabilityState.widMonsters) {
+            if(i > 6) break;
+            const active = this.selectedMonsterTab === i-1 ? 'wid-monster-tab-active' : '';
+            buttons += `<div class = "wid-monster-tab ${active}" data-index="${i-1}">${i}</div>`;
+            i++;
+        }
+
+        this.monsterTabContainer.innerHTML = buttons;
+    }
+
     // Rerenders all the DOM elements related to this mod with new values
     _reRender() {
         if(!this.headerComponentCreated) return;
@@ -214,8 +283,8 @@ export class CombatResolver {
             After you have set the combat area target, WillIDie will begin to calculate whether you will live or die 
             when idling in the selected area, based on your current gear and statistics.`;
 
+            this._reRenderMonsterTabs();
             this._reRenderSafetyFactor();
-
             return;
         }
 
@@ -228,8 +297,11 @@ export class CombatResolver {
             areaName,
             playerIsWorseThanEnemy,
             playerCanKillSelf,
-            playerSelfHit
+            playerSelfHit,
+            widMonsters
         } = this.currentSurvivabilityState;
+
+        const numberOrderStrings = ['', 'second ', 'third ', 'fourth ', 'fifth ', 'sixth ', 'seventh ', 'eighth ', 'ninth ', 'tenth '];
 
         if(canDie || playerCanKillSelf) {
             this.tabButton.textContent = "DANGER";
@@ -244,7 +316,7 @@ export class CombatResolver {
 
             if(playerIsWorseThanEnemy) {
                 this.tabContent.innerHTML = `<span class = "cr-hl cr-hl-warn">YOU COULD DIE.</span><br/><br/>
-                In the worst case, a player named 
+                In the ${numberOrderStrings[this.selectedMonsterTab]}worst case, a player named 
                 <span class = "cr-hl cr-hl-enemy">${game.characterName}</span> in 
                 <span class = "cr-hl cr-hl-area">their mom's basement</span> could hit themselves for 
                 <span class = "cr-hl cr-hl-dmg">${playerSelfHit}</span>.<br/><br/>As
@@ -253,7 +325,7 @@ export class CombatResolver {
                 <span class = "cr-hl cr-hl-enemy">this silly mistake</span> could kill you.`;
             } else {
                 this.tabContent.innerHTML = `<span class = "cr-hl cr-hl-warn">YOU COULD DIE.</span><br/><br/>
-                In the worst case, a monster named 
+                In the ${numberOrderStrings[this.selectedMonsterTab]}worst case, a monster named 
                 <span class = "cr-hl cr-hl-enemy">${maxHitReason.monsterName}</span> in 
                 <span class = "cr-hl cr-hl-area">${areaName}</span> could perform 
                 <span class = "cr-hl cr-hl-spec">${maxHitReason.bestAttackName}</span> and hit you for 
@@ -264,7 +336,7 @@ export class CombatResolver {
                 `${this.showCalculations ? maxHitReason.equation : ''}`;
             }
             
-
+            this._reRenderMonsterTabs();
             this._reRenderSafetyFactor();
         }
         else {
@@ -279,7 +351,7 @@ export class CombatResolver {
                 this.tabButton.classList.add('combat-resolver-recalc');
 
                 this.tabContent.innerHTML = `<span class = "cr-hl combat-resolver-recalc">PENDING RECALCULATION.</span><br/><br/>
-                In the worst case, a monster named 
+                In the ${numberOrderStrings[this.selectedMonsterTab]}worst case, a monster named 
                 <span class = "cr-hl cr-hl-enemy">${maxHitReason.monsterName}</span> in 
                 <span class = "cr-hl cr-hl-area">${areaName}</span> could perform 
                 <span class = "cr-hl cr-hl-spec">${maxHitReason.bestAttackName}</span> and hit you for 
@@ -291,7 +363,7 @@ export class CombatResolver {
                 <span class = "cr-hl-warn">LEAVE COMBAT TO RECALCULATE SURVIVABILITY</span>`;
             } else {
                 this.tabContent.innerHTML = `<span class = "cr-hl cr-hl-ok">YOU SHOULD BE SAFE.</span><br/><br/>
-                In the worst case, a monster named 
+                In the ${numberOrderStrings[this.selectedMonsterTab]}worst case, a monster named 
                 <span class = "cr-hl cr-hl-enemy">${maxHitReason.monsterName}</span> in 
                 <span class = "cr-hl cr-hl-area">${areaName}</span> could perform 
                 <span class = "cr-hl cr-hl-spec">${maxHitReason.bestAttackName}</span> and hit you for 
@@ -301,9 +373,8 @@ export class CombatResolver {
                 <span class = "cr-hl cr-hl-enemy">${maxHitReason.monsterName}</span> shouldn't be able to kill you.` +
                 `${this.showCalculations ? maxHitReason.equation : ''}`;
             }
-
             
-
+            this._reRenderMonsterTabs();
             this._reRenderSafetyFactor();
         }
     }
@@ -499,38 +570,38 @@ export class CombatResolver {
         let widMonsters = [];
 
         if(areaOrMonster === "AREA") {
-            widMonsters = target.monsters.map(m => new WIDMonster(m.id, this.safetyFactor, target));
+            widMonsters = target.monsters.map(m => new WIDMonster(m.id, target, this.safetyFactor, this.afflictionFactor));
             this.targetArea = target;
             this.targetMonster = null;
             this.targetSlayerTask = null;
         } else if(areaOrMonster === "MONSTER") {
             const areaForMonster = areas.find(a => a.monsters.find(m => m.id === target))
-            widMonsters = [new WIDMonster(target, this.safetyFactor, areaForMonster)];
+            widMonsters = [new WIDMonster(target, areaForMonster, this.safetyFactor, this.afflictionFactor)];
             this.targetMonster = target;
             this.targetArea = null;
             this.targetSlayerTask = null;
         } else if(areaOrMonster === "SLAYER") {
             const areaForMonster = areas.find(a => a.monsters.find(m => m.id === target[0].id))
-            widMonsters = target.map(m => new WIDMonster(m.id, this.safetyFactor, areaForMonster));
+            widMonsters = target.map(m => new WIDMonster(m.id, areaForMonster, this.safetyFactor, this.afflictionFactor));
             this.targetSlayerTask = target;
             this.targetMonster = null;
             this.targetArea = null;
         } else {
             if(this.targetArea && !this.targetMonster && !this.targetSlayerTask) {
                 this._log(`WillIDie: Found unambiguous area target for cold function call, recalculating survivability`);
-                widMonsters = this.targetArea.monsters.map(m => new WIDMonster(m.id, this.safetyFactor, this.targetArea));
+                widMonsters = this.targetArea.monsters.map(m => new WIDMonster(m.id, this.targetArea, this.safetyFactor, this.afflictionFactor));
                 areaOrMonster === "AREA";
                 target = this.targetArea;
             } else if(this.targetMonster && !this.targetArea && !this.targetSlayerTask) {
                 this._log(`WillIDie: Found unambiguous monster target for cold function call, recalculating survivability`);
                 const areaForMonster = areas.find(a => a.monsters.find(m => m.id === this.targetMonster))
-                widMonsters = [new WIDMonster(this.targetMonster, this.safetyFactor, areaForMonster)];
+                widMonsters = [new WIDMonster(this.targetMonster, areaForMonster, this.safetyFactor, this.afflictionFactor)];
                 areaOrMonster === "MONSTER";
                 target = this.targetMonster;
             } else if(this.targetSlayerTask && !this.targetArea && !this.targetMonster) {
                 this._log(`WillIDie: Found unambiguous slayer target for cold function call, recalculating survivability`);
                 const areaForMonster = areas.find(a => a.monsters.find(m => m.id === this.targetSlayerTask[0].id))
-                widMonsters = this.targetSlayerTask.map(m => new WIDMonster(m.id, this.safetyFactor, areaForMonster));
+                widMonsters = this.targetSlayerTask.map(m => new WIDMonster(m.id, areaForMonster, this.safetyFactor, this.afflictionFactor));
                 areaOrMonster === "SLAYER";
                 target = this.targetSlayerTask;
             } else {
@@ -540,21 +611,14 @@ export class CombatResolver {
             }
         }
 
+        this.selectedMonsterTab = 0;
+
         this._log(`WillIDie: Recalculating survivability (${reason})`);
-        
-        const autoEatThreshold = game.combat.player.autoEatThreshold;
-        let mostDangerousMonster = null;
 
-        widMonsters.forEach(monster => {
-            if(mostDangerousMonster === null) {
-                mostDangerousMonster = monster;
-                return;
-            }
+        widMonsters.sort((a, b) => b.effectiveMaxHit - a.effectiveMaxHit);
+        const mostDangerousMonster = widMonsters[0];
 
-            if(monster.effectiveMaxHit > mostDangerousMonster.effectiveMaxHit) {
-                mostDangerousMonster = monster;
-            }
-        });
+        const autoEatThreshold = this._getAutoEatThreshold(mostDangerousMonster.decreasedMaxHitpointsModifier);
 
         if(this._debug) {
             this._debugValues.monsters = widMonsters;
@@ -568,6 +632,14 @@ export class CombatResolver {
         const area = areas.find(a => a.monsters.find(m => m.id === mostDangerousMonster.monsterId));
         let areaName = area ? area.name : "Unknown";
 
+        const uniqueMonsters = widMonsters.filter((v, i, self) =>
+            i === self.findIndex((t) => (
+                t.monsterId === v.monsterId
+            ))
+        );
+
+        uniqueMonsters.sort((a, b) => b.effectiveMaxHit - a.effectiveMaxHit);
+
         this.currentSurvivabilityState = {
             maxHit: mostDangerousMonster.maxHit,
             effectiveMaxHit: mostDangerousMonster.effectiveMaxHit,
@@ -578,10 +650,23 @@ export class CombatResolver {
 
             playerSelfHit: mostDangerousMonster.effectiveDamageTakenPerAttack,
             playerIsWorseThanEnemy,
-            playerCanKillSelf
+            playerCanKillSelf,
+
+            widMonsters,
+            uniqueMonsters
         }
         this.pendingRecalculation = false;
         this._reRender();
+    }
+
+    _getAutoEatThreshold(maxHealthReduction = 1) {
+        let percent = game.combat.player.modifiers.increasedAutoEatThreshold - game.combat.player.modifiers.decreasedAutoEatThreshold;
+        percent = Math.min(100, percent);
+
+        let maxHitpoints = game.combat.player.stats.maxHitpoints;
+        maxHitpoints = maxHitpoints * maxHealthReduction;
+
+        return (maxHitpoints * percent) / 100;
     }
 
     _handleTButton(e) {
@@ -606,5 +691,29 @@ export class CombatResolver {
         e.target.classList.add('cr-active');
 
         return false;
+    }
+
+    handleMonsterTabClick(e) {
+        const index = parseInt(e.target.dataset.index);
+
+        if(!Number.isInteger(index))
+            return;
+        
+        if(!this.currentSurvivabilityState)
+            return;
+
+        const mostDangerousMonster = this.currentSurvivabilityState.uniqueMonsters[index];
+
+        this.currentSurvivabilityState = {
+            ...this.currentSurvivabilityState,
+            maxHit: mostDangerousMonster.maxHit,
+            effectiveMaxHit: mostDangerousMonster.effectiveMaxHit,
+            maxHitReason: mostDangerousMonster.whatMakesMeDangerous(),
+            canDie: mostDangerousMonster.effectiveMaxHit >= this.currentSurvivabilityState.autoEatThreshold,
+            playerSelfHit: mostDangerousMonster.effectiveDamageTakenPerAttack
+        }
+
+        this.selectedMonsterTab = index;
+        this._reRender();
     }
 }

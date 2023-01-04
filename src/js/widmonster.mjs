@@ -1,6 +1,9 @@
+import { WidMonsterUtil } from "./widmonsterutil.mjs";
+
 export class WIDMonster {
     monsterId = null;
     safetyFactor = 1;
+    afflictionFactor = 20;
     monsterArea = null;
 
     gameClone = null;
@@ -16,7 +19,7 @@ export class WIDMonster {
     canSleep = false;
     stunDamageMultiplier = 1;
     sleepDamageMultiplier = 1;
-    totalDamageMultiplier = 1;
+    conditionDamageMultiplier = 1;
 
     damageTakenPerAttackEffect = 0;
     damageTakenPerAttack = 0;
@@ -39,13 +42,16 @@ export class WIDMonster {
     maxHit = 0;
     effectiveMaxHit = 0;
 
+    decreasedMaxHitpointsModifier = 1;
+
     // Internal player values
     _playerAttackStyle = null;
     _playerDamageReduction = 0;
 
-    constructor(monsterId, safetyFactor = 1, monsterArea) {
+    constructor(monsterId, monsterArea, safetyFactor = 1, afflictionFactor = 0) {
         this.monsterId = monsterId;
         this.safetyFactor = safetyFactor;
+        this.afflictionFactor = afflictionFactor;
         this.monsterArea = monsterArea;
 
         this.gameClone = $.extend(true, {}, game);
@@ -69,8 +75,7 @@ export class WIDMonster {
         this.dummyEnemy.target = this.dummyPlayer;
         this.dummyEnemy.computeMaxHit();
 
-        this.dummyPlayer.computeDamageReduction();
-        this._playerDamageReduction = this.dummyPlayer.stats.damageReduction;
+        this._playerDamageReduction = this._computeStandardDamageReduction();
 
         this.specialAttackChanceTotal = 0;
         this.name = this.dummyMonster._name;
@@ -92,6 +97,8 @@ export class WIDMonster {
             this.monsterPassiveDecreasedPlayerDamageReduction = 0;
         }
 
+        // TODO: Stun passive
+
         if(monsterArea && monsterArea.areaEffect) {
             if(monsterArea.areaEffect.modifier === "increasedDamageTakenPerAttack") {
                 this.damageTakenPerAttackEffect = this.monsterArea.areaEffect.magnitude;
@@ -110,8 +117,6 @@ export class WIDMonster {
             this.damageTakenPerAttack = 0;
             this.effectiveDamageTakenPerAttack = 0;
         }
-
-        
         
         this.dummyEnemy.availableAttacks.forEach(specialAttack => {
 
@@ -148,15 +153,42 @@ export class WIDMonster {
             });
         });
 
-        if(this.canStun || this.canSleep) {
-            this.totalDamageMultiplier = Math.max(this.stunDamageMultiplier, this.sleepDamageMultiplier);
+        if(this.monsterId === "melvorTotH:VorloranProtector") {
+            this.canStun = true;
+            this.stunDamageMultiplier = 1.3;
         }
 
+        if(this.canStun || this.canSleep) {
+            this.conditionDamageMultiplier = Math.max(this.stunDamageMultiplier, this.sleepDamageMultiplier);
+        }
+
+        // Enemy cannot normal attack, if it will always use some special attack and none of them can normal attack
+        if(this.specialAttackChanceTotal >= 100 && 
+            this.dummyEnemy.availableAttacks.every(a => a.attack.canNormalAttack === false && 
+            a.attack.description.toLowerCase().indexOf('normal attack') === -1)
+        ) {
+            this.canNormalAttack = false;
+        } else {
+            this.canNormalAttack = true;
+        }
+
+        // Fetch certain monster specific modifier bullshit
+        const {
+            increasedMaxHitPercentModifier,
+            increasedMaxHitFlatModifier,
+            decreasedMaxHitpointsModifier,
+            decreasedDamageReductionModifier
+        } = WidMonsterUtil.getMonsterSpecificBullshit(this.monsterId, this.afflictionFactor);
+
+        this.decreasedMaxHitpointsModifier = decreasedMaxHitpointsModifier;
         this.normalAttackMaxHit = this._calculateStandardMaxHit()
         this.dummyPlayer.computeDamageReduction();
 
-        const dmgs = this.normalAttackMaxHit * this.totalDamageMultiplier * this.safetyFactor;
-        const pred = this._playerDamageReduction - this.monsterPassiveDecreasedPlayerDamageReduction < 0 ? 0 : this._playerDamageReduction - this.monsterPassiveDecreasedPlayerDamageReduction;
+        const dmgs = (this.normalAttackMaxHit + increasedMaxHitFlatModifier) * this.conditionDamageMultiplier * this.safetyFactor * increasedMaxHitPercentModifier;
+
+        const pred = this._playerDamageReduction - this.monsterPassiveDecreasedPlayerDamageReduction - decreasedDamageReductionModifier < 0 ? 0 
+                    : this._playerDamageReduction - this.monsterPassiveDecreasedPlayerDamageReduction - decreasedDamageReductionModifier;
+
         const reds = 1 - (Math.floor(pred * this.combatTriangleMultiplier) / 100);
         this.effectiveNormalAttackMaxHit = Math.round(dmgs * reds);
 
@@ -164,8 +196,11 @@ export class WIDMonster {
             const maxHit = this._specialAttackDamage(specialAttack.originalSpecialAttack);
             this.dummyPlayer.computeDamageReduction();
 
-            const dmgs = maxHit * this.totalDamageMultiplier * this.safetyFactor;
-            const pred = this._playerDamageReduction - this.monsterPassiveDecreasedPlayerDamageReduction < 0 ? 0 : this._playerDamageReduction - this.monsterPassiveDecreasedPlayerDamageReduction;
+            const dmgs = (maxHit + increasedMaxHitFlatModifier) * this.conditionDamageMultiplier * this.safetyFactor * increasedMaxHitPercentModifier;
+
+            const pred = this._playerDamageReduction - this.monsterPassiveDecreasedPlayerDamageReduction - decreasedDamageReductionModifier < 0 ? 0 
+                        : this._playerDamageReduction - this.monsterPassiveDecreasedPlayerDamageReduction - decreasedDamageReductionModifier;
+
             const reds = 1 - (Math.floor(pred * this.combatTriangleMultiplier) / 100);
             const effectiveMaxHit = Math.round(dmgs * reds);
             
@@ -198,18 +233,14 @@ export class WIDMonster {
         this.effectiveSpecialAttackMaxHit = effectiveSpecialAttackMaxHit;
         this.effectiveMaxHittingSpecialAttack = effectiveMaxHittingSpecialAttack;
 
-        this.maxHit = Math.max(this.normalAttackMaxHit, this.specialAttackMaxHit);
-        this.effectiveMaxHit = Math.max(this.effectiveNormalAttackMaxHit, this.effectiveSpecialAttackMaxHit);
-
-        // Enemy cannot normal attack, if it will always use some special attack and none of them can normal attack
-        if(this.specialAttackChanceTotal >= 100 && 
-            this.dummyEnemy.availableAttacks.every(a => a.attack.canNormalAttack === false && 
-            a.attack.descriptionGenerator.indexOf('Normal attack') === -1)
-        ) {
-            this.canNormalAttack = false;
+        if(this.canNormalAttack) {
+            this.maxHit = Math.max(this.normalAttackMaxHit, this.specialAttackMaxHit);
+            this.effectiveMaxHit = Math.max(this.effectiveNormalAttackMaxHit, this.effectiveSpecialAttackMaxHit);
         } else {
-            this.canNormalAttack = true;
-        }  
+            this.maxHit = this.specialAttackMaxHit;
+            this.effectiveMaxHit = this.effectiveSpecialAttackMaxHit;
+        }
+
     }
 
     whatMakesMeDangerous() {
@@ -217,14 +248,15 @@ export class WIDMonster {
             monsterName: this.name,
         };
 
-        if((this.normalAttackMaxHit > this.specialAttackMaxHit) && this.canNormalAttack) {
+        if(this.canNormalAttack && (this.normalAttackMaxHit > this.specialAttackMaxHit)) {
             explain.bestAttackName = "Normal Attack";
             explain.maxHit = this.normalAttackMaxHit;
             explain.effectiveMaxHit = this.effectiveNormalAttackMaxHit;
+            explain.attackStyle = this.normalAttackStyle;
 
-            const [equation, vars] = this._maxHitEquationHTML(
+            const [equation, vars] = WidMonsterUtil.maxHitEquationHTML(
                 this.normalAttackMaxHit, 
-                this.totalDamageMultiplier, 
+                this.conditionDamageMultiplier, 
                 this.safetyFactor, 
                 this.monsterPassiveDecreasedPlayerDamageReduction, 
                 this._playerDamageReduction, 
@@ -237,10 +269,11 @@ export class WIDMonster {
             explain.bestAttackName = this.maxHittingSpecialAttack.specialAttackName;
             explain.maxHit = this.specialAttackMaxHit;
             explain.effectiveMaxHit = this.effectiveSpecialAttackMaxHit;
+            explain.attackStyle = this.maxHittingSpecialAttack.originalSpecialAttack.attackStyle;
 
-            const [equation, vars] = this._maxHitEquationHTML(
+            const [equation, vars] = WidMonsterUtil.maxHitEquationHTML(
                 this.specialAttackMaxHit, 
-                this.totalDamageMultiplier, 
+                this.conditionDamageMultiplier, 
                 this.safetyFactor, 
                 this.monsterPassiveDecreasedPlayerDamageReduction, 
                 this._playerDamageReduction, 
@@ -254,37 +287,16 @@ export class WIDMonster {
         return explain;
     }
 
-    _maxHitEquationHTML(maxHit, totalDamageMultiplier, safetyFactor, monsterPassiveDecreasedPlayerDamageReduction, playerDamageReduction, combatTriangleMultiplier) {
+    _computeStandardDamageReduction() {
+        let reduction = this.dummyPlayer.equipmentStats.damageReduction;
+        reduction += this.dummyPlayer.modifiers.getFlatDamageReductionModifier();
+        reduction *= 1 + (this.dummyPlayer.modifiers.increasedDamageReductionPercent - this.dummyPlayer.modifiers.decreasedDamageReductionPercent) / 100;
 
-        const dmgs = maxHit * totalDamageMultiplier * safetyFactor;
-        const pred = playerDamageReduction - monsterPassiveDecreasedPlayerDamageReduction < 0 ? 0 : playerDamageReduction - monsterPassiveDecreasedPlayerDamageReduction;
-        const reds = 1 - (Math.floor(pred * combatTriangleMultiplier) / 100);
-        const effective = Math.round(dmgs * reds);
-        const vars = {
-            "cr-eq-var-1":  { description: "Max hit", name: "I", value: maxHit },
-            "cr-eq-var-2":  { description: "Cond. dmg +%", name: "J", value: totalDamageMultiplier },
-            "cr-eq-var-3":  { description: "Safety factor", name: "K", value: safetyFactor },
-            "cr-eq-var-4":  { description: "Decreased DR", name: "L", value: monsterPassiveDecreasedPlayerDamageReduction },
-            "cr-eq-var-5":  { description: "Player DR", name: "M", value: playerDamageReduction },
-            "cr-eq-var-6":  { description: "Combat triangle", name: "N", value: combatTriangleMultiplier },
-            "cr-eq-var-7":  { description: "Total dmg", name: "O", intermediary: 'I * J * K', value: dmgs },
-            "cr-eq-var-8":  { description: "DR after reduction", name: "P", intermediary: 'M - L < 0 ? 0 : M - L', value: pred },
-            "cr-eq-var-9":  { description: "Final DR", name: "Q", intermediary: '1 - (Math.floor(P * N) / 100)', value: reds },
-            "cr-eq-var-10": { description: "Effective max hit", name: "R", intermediary: 'Math.round(O * Q)', value: effective }
-        }
+        if (this.dummyPlayer.modifiers.halveDamageReduction > 0)
+            reduction *= 0.5;
 
-        return [`<div class = "cr-eq-container">` + 
-        `<span class = "cr-eq-var cr-eq-var-1">I</span> = <span class = "cr-eq-val">${maxHit}</span><br/>` +
-        `<span class = "cr-eq-var cr-eq-var-2">J</span><span class = "cr-eq-calc"> = </span><span class = "cr-eq-val">${totalDamageMultiplier}</span><br/>` +
-        `<span class = "cr-eq-var cr-eq-var-3">K</span><span class = "cr-eq-calc"> = </span><span class = "cr-eq-val">${safetyFactor}</span><br/>` +
-        `<span class = "cr-eq-var cr-eq-var-4">L</span><span class = "cr-eq-calc"> = </span><span class = "cr-eq-val">${monsterPassiveDecreasedPlayerDamageReduction}</span><br/>` +
-        `<span class = "cr-eq-var cr-eq-var-5">M</span><span class = "cr-eq-calc"> = </span><span class = "cr-eq-val">${playerDamageReduction}</span><br/>` +   
-        `<span class = "cr-eq-var cr-eq-var-6">N</span><span class = "cr-eq-calc"> = </span><span class = "cr-eq-val">${combatTriangleMultiplier}</span><br/>` +
-        `<span class = "cr-eq-var cr-eq-var-7">O</span><span class = "cr-eq-calc"> = <span class = "cr-eq-var cr-eq-var-1">I</span> * <span class = "cr-eq-var cr-eq-var-2">J</span> * <span class = "cr-eq-var cr-eq-var-3">K</span> = </span><span class = "cr-eq-val">${dmgs}</span><br/>` +
-        `<span class = "cr-eq-var cr-eq-var-8">P</span><span class = "cr-eq-calc"> = (<span class = "cr-eq-var cr-eq-var-5">M</span> - <span class = "cr-eq-var cr-eq-var-4">L</span> < 0 ? 0 : <span class = "cr-eq-var cr-eq-var-5">M</span> - <span class = "cr-eq-var cr-eq-var-4">L</span>) = </span><span class = "cr-eq-val">${pred}</span><br/>` +
-        `<span class = "cr-eq-var cr-eq-var-9">Q</span><span class = "cr-eq-calc"> = (1 - (Math.floor(<span class = "cr-eq-var cr-eq-var-7">P</span> * <span class = "cr-eq-var cr-eq-var-6">N</span>) / 100)) = </span><span class = "cr-eq-val">${reds}</span><br/>` +
-        `<span class = "cr-eq-var cr-eq-var-10">R</span><span class = "cr-eq-calc"> = Math.round(<span class = "cr-eq-var cr-eq-var-7">O</span> * <span class = "cr-eq-var cr-eq-var-9">Q</span>) = </span><span class = "cr-eq-val">${effective}</span>` +
-        `</div>`, vars];
+        reduction = Math.floor(reduction);
+        return WidMonsterUtil.clampValue(reduction, 0, 95);
     }
 
     _slayerNegationForAreaEffect(effect) {
@@ -323,7 +335,7 @@ export class WIDMonster {
             default:
                 throw new Error(`Invalid damage character type: ${damage.character}`);
         }
-        return this._damageRoll(character, damage.maxRoll, damage.maxPercent);
+        return WidMonsterUtil.damageRoll(character, damage.maxRoll, damage.maxPercent);
     }
 
     _getCharacter(monsterOrPlayer) {
@@ -346,90 +358,6 @@ export class WIDMonster {
         } else {
             throw new Error(`Invalid character type: ${monsterOrPlayer}`);
         }
-    }
-
-    _damageRoll(character, type, percent) {
-        let value = 0;
-        
-        switch (type) {
-            case 'CurrentHP':
-                value = character.maxHitpoints;
-                break;
-            case 'MaxHP':
-                value = character.maxHitpoints;
-                break;
-            case 'DamageDealt':
-                value = 0;
-                break;
-            case 'MaxHit':
-                value = character.maxHit;
-                break;
-            case 'MinHit':
-                value = 0;
-                break;
-            case 'Fixed':
-                return percent * numberMultiplier;
-            case 'MagicScaling':
-                value = (character.levels.Magic + 1) * numberMultiplier;
-                break;
-            case 'One':
-                return 1;
-            case 'Rend':
-                percent = 250;
-                value = damageDealt;
-                break;
-            case 'Poisoned':
-                return numberMultiplier * percent;
-            case 'Bleeding':
-                return numberMultiplier * percent;
-            case 'PoisonMin35':
-                value = 0;
-                break;
-            case 'PoisonMax35':
-                value = character.maxHit;
-                percent += 35;
-                break;
-            case 'PoisonFixed100':
-                value = numberMultiplier * percent;
-                value *= 2;
-                return value;
-            case 'BurnFixed100':
-                value = numberMultiplier * percent;
-                value *= 2;
-                return value;
-            case 'BurnMaxHit100':
-                value = character.maxHit;
-                percent += 100;
-                break;
-            case 'CursedFixed100':
-                value = numberMultiplier * percent;
-                value *= 2;
-                return value;
-            case 'MaxHitDR':
-                value = character.maxHit;
-                percent += character.damageReduction;
-                break;
-            case 'MaxHitScaledByHP':
-                value = (character.maxHit * character.hitpointsPercent) / 100;
-                break;
-            case 'MaxHitScaledByHP2x':
-                value = (character.maxHit * (character.hitpointsPercent * 2)) / 100;
-                break;
-            case 'FixedPlusMaxHit50':
-                return numberMultiplier * percent + character.maxHit / 2;
-            case 'HPUnder90':
-                if (character.hitpointsPercent <= 90)
-                    return numberMultiplier * percent;
-                else
-                    return 0;
-            case 'PoisonedMaxHit':
-                value = character.maxHit;
-                break;
-            default:
-                throw new Error(`Invalid damage type: ${type}`);
-        }
-
-        return Math.floor((value * percent) / 100);
     }
 
     _combatTriangleMultiplier() {

@@ -1,7 +1,7 @@
 import { CombatResolver } from "./CombatResolver.mjs";
 import '../css/willidie.css';
 
-export async function setup(ctx) {
+export function setup(ctx) {
 
     // Instantiate CombatResolver
     const combatResolver = new CombatResolver();
@@ -11,57 +11,109 @@ export async function setup(ctx) {
     const calculationDisplaySettings = ctx.settings.section('Calculation display');
     const debugSettings = ctx.settings.section('Debug');
 
-    safetySettings.add({
-        type: 'number',
-        name: 'safety_factor',
-        label: 'Simply put - Safety Factor adds % damage to monster max hit when survivability is calculated. This is to account for any unexpected damage sources',
-        hint: '',
-        min: 0,
-        max: 100,
-        default: 2,
-        onChange: (newValue) => { 
-            combatResolver.safetyFactor = 1 + (newValue / 100); 
-            combatResolver.recalculateSurvivability("Settings changed"); 
-        }
-    });
+    ctx.onCharacterSelectionLoaded(ctx => {
+        ctx.onCharacterLoaded(() => {
+            const willIDieStorage = ctx.characterStorage.getItem('willidie') ?? {
+                settings: {
+                    safetyfactor: 2,
+                    afflictionfactor: 20,
+                    requirements: false,
+                    calculations: false,
+                    debug: false
+                }
+            };
 
-    requirementSettings.add({
-        type: 'switch',
-        name: 'skip_requirements',
-        label: 'When enabled, Will I Die? will will ignore all dungeon- and slayer-area requirements, thus allowing you to check survivability of any area',
-        hint: 'This does not affect slayer task requirements (it\'s complicated)',
-        default: false,
-        onChange: (newValue) => { 
-            combatResolver.skipRequirements = newValue; 
-            combatResolver.recalculateSurvivability("Settings changed"); 
-        }
-    });
+            const safetyFactorDefault = 1 + (willIDieStorage.settings.safetyfactor / 100);
+            const afflictionFactorDefault = willIDieStorage.settings.afflictionfactor;
+            const requirementsDefault = willIDieStorage.settings.requirements;
+            const calculationsDefault = willIDieStorage.settings.calculations;
+            const debugDefault = willIDieStorage.settings.debug;
 
-    calculationDisplaySettings.add({
-        type: 'switch',
-        name: 'show_calculations',
-        label: 'When enabled, full-ish calculation details will be displayed in the Will I Die? dropdown-menu',
-        hint: 'You can hover mouse over the variables to expand on them',
-        default: false,
-        onChange: (newValue) => { 
-            combatResolver.showCalculations = newValue; 
-            combatResolver.recalculateSurvivability("Settings changed"); 
-        }
-    });
+            safetySettings.add({
+                type: 'number',
+                name: 'safety_factor',
+                label: 'Simply put - Safety Factor adds % damage to monster max hit when survivability is calculated. This is to account for any unexpected damage sources',
+                hint: '',
+                min: 0,
+                max: 100,
+                default: willIDieStorage.settings.safetyfactor,
+                onChange: (newValue) => { 
+                    combatResolver.safetyFactor = 1 + (newValue / 100); 
+                    combatResolver.recalculateSurvivability("Settings changed");
+                    willIDieStorage.settings.safetyfactor = newValue;
+                    ctx.characterStorage.setItem('willidie', willIDieStorage);
+                }
+            });
+        
+            safetySettings.add({
+                type: 'number',
+                name: 'affliction_factor',
+                label: 'How many affliction stacks the calculator should assume you have, when enemy is able to inflict them.',
+                hint: '',
+                min: 0,
+                max: 50,
+                default: afflictionFactorDefault,
+                onChange: (newValue) => { 
+                    combatResolver.afflictionFactor = newValue; 
+                    combatResolver.recalculateSurvivability("Settings changed"); 
+                    willIDieStorage.settings.afflictionfactor = newValue;
+                    ctx.characterStorage.setItem('willidie', willIDieStorage);
+                }
+            });
+        
+            requirementSettings.add({
+                type: 'switch',
+                name: 'skip_requirements',
+                label: 'When enabled, Will I Die? will will ignore all dungeon- and slayer-area requirements, thus allowing you to check survivability of any area',
+                hint: 'This does not affect slayer task requirements (it\'s complicated)',
+                default: requirementsDefault,
+                onChange: (newValue) => { 
+                    combatResolver.skipRequirements = newValue; 
+                    combatResolver.recalculateSurvivability("Settings changed"); 
+                    willIDieStorage.settings.requirements = newValue;
+                    ctx.characterStorage.setItem('willidie', willIDieStorage);
+                }
+            });
+        
+            calculationDisplaySettings.add({
+                type: 'switch',
+                name: 'show_calculations',
+                label: 'When enabled, full-ish calculation details will be displayed in the Will I Die? dropdown-menu',
+                hint: 'You can hover mouse over the variables to expand on them',
+                default: calculationsDefault,
+                onChange: (newValue) => { 
+                    combatResolver.showCalculations = newValue; 
+                    combatResolver.recalculateSurvivability("Settings changed"); 
+                    willIDieStorage.settings.calculations = newValue;
+                    ctx.characterStorage.setItem('willidie', willIDieStorage);
+                }
+            });
+        
+            debugSettings.add({
+                type: 'switch',
+                name: 'debug_mode',
+                label: 'Enable Debug Mode',
+                hint: '',
+                default: debugDefault,
+                onChange: (newValue) => { 
+                    combatResolver._debug = newValue; 
+                    combatResolver.recalculateSurvivability("Settings changed"); 
+                    willIDieStorage.settings.debug = newValue;
+                    ctx.characterStorage.setItem('willidie', willIDieStorage);
+                }
+            });
+        
+            combatResolver._init(ctx);
 
-    debugSettings.add({
-        type: 'switch',
-        name: 'debug_mode',
-        label: 'Enable Debug Mode',
-        hint: '',
-        default: false,
-        onChange: (newValue) => { 
-            combatResolver._debug = newValue; 
-            combatResolver.recalculateSurvivability("Settings changed"); 
-        }
-    });
+            combatResolver.safetyFactor = safetyFactorDefault;
+            combatResolver.afflictionFactor = afflictionFactorDefault;
+            combatResolver.skipRequirements = requirementsDefault;
+            combatResolver.showCalculations = calculationsDefault;
+            combatResolver._debug = debugDefault;
 
-    combatResolver._init(ctx);
+            combatResolver.recalculateSurvivability("Settings loaded");
+        });
+    });
 
     // Patch and replace CombatAreaMenu.prototype.createMenuElement method
     // This one allows us to inject our own HTML at a very specific time
@@ -351,9 +403,25 @@ export async function setup(ctx) {
         combatResolver.recalculateSurvivability("Combat stop");
     })
 
+    ctx.patch(PotionManager, 'usePotion').after(() => {
+        combatResolver.recalculateSurvivability("Potion used");
+    })
+
+    ctx.patch(PotionManager, 'removePotion').after(() => {
+        combatResolver.recalculateSurvivability("Potion removed");
+    })
+
     // Hook to onInterfaceReady
     // We use this event to create our header component for this mod
     ctx.onInterfaceReady(() => {
         combatResolver._createHeaderComponent();
+
+        $('body').on('click', '#will-i-die-header-tab-dropdown', function(e) {
+            e.stopPropagation();
+        });
+
+        $('body').on('click', function(e) {
+            combatResolver._fastResetTabContents();
+        });
     })
 }
