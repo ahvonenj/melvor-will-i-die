@@ -399,17 +399,24 @@ export function setup(ctx) {
         combatResolver.recalculateSurvivability("Equipment set change");
     });
 
+    ctx.patch(Player, "togglePrayer").before((prayer, render) => {
+        if(["melvorF:Safeguard", "melvorF:Stone_Skin", "melvorTotH:HolyAegis"].includes(prayer.id)) {
+            combatResolver.recalculateSurvivability("Prayer change");
+        }
+        return [prayer, render];
+    });
+
     ctx.patch(BaseManager, 'stop').after(() => {
         combatResolver.recalculateSurvivability("Combat stop");
-    })
+    });
 
     ctx.patch(PotionManager, 'usePotion').after(() => {
         combatResolver.recalculateSurvivability("Potion used");
-    })
+    });
 
     ctx.patch(PotionManager, 'removePotion').after(() => {
         combatResolver.recalculateSurvivability("Potion removed");
-    })
+    });
 
     // Hook to onInterfaceReady
     // We use this event to create our header component for this mod

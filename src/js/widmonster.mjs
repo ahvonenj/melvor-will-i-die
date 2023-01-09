@@ -42,11 +42,16 @@ export class WIDMonster {
     maxHit = 0;
     effectiveMaxHit = 0;
 
-    decreasedMaxHitpointsModifier = 1;
+    increasedMaxHitPercentModifier = 0;
+    increasedMaxHitFlatModifier = 0; 
+    decreasedMaxHitpointsModifier = 0;
+    decreasedDamageReductionModifier = 0;
 
     // Internal player values
     _playerAttackStyle = null;
     _playerDamageReduction = 0;
+
+    media = "";
 
     constructor(monsterId, monsterArea, safetyFactor = 1, afflictionFactor = 0) {
         this.monsterId = monsterId;
@@ -70,6 +75,7 @@ export class WIDMonster {
             https://melvoridle.com/assets/data/melvorTotH.json
         */
         this.dummyMonster = this.gameClone.monsters.find(m => m.id === this.monsterId);
+        this.media = this.dummyMonster.media;
 
         this.dummyEnemy.setMonster(this.dummyMonster);
         this.dummyEnemy.target = this.dummyPlayer;
@@ -180,9 +186,13 @@ export class WIDMonster {
             decreasedDamageReductionModifier
         } = WidMonsterUtil.getMonsterSpecificBullshit(this.monsterId, this.afflictionFactor);
 
+        this.increasedMaxHitPercentModifier = increasedMaxHitPercentModifier;
+        this.increasedMaxHitFlatModifier = increasedMaxHitFlatModifier;
         this.decreasedMaxHitpointsModifier = decreasedMaxHitpointsModifier;
+        this.decreasedDamageReductionModifier = decreasedDamageReductionModifier;
+
+
         this.normalAttackMaxHit = this._calculateStandardMaxHit()
-        this.dummyPlayer.computeDamageReduction();
 
         const dmgs = (this.normalAttackMaxHit + increasedMaxHitFlatModifier) * this.conditionDamageMultiplier * this.safetyFactor * increasedMaxHitPercentModifier;
 
@@ -194,7 +204,6 @@ export class WIDMonster {
 
         this.specialAttacks = this.specialAttacks.map(specialAttack => {
             const maxHit = this._specialAttackDamage(specialAttack.originalSpecialAttack);
-            this.dummyPlayer.computeDamageReduction();
 
             const dmgs = (maxHit + increasedMaxHitFlatModifier) * this.conditionDamageMultiplier * this.safetyFactor * increasedMaxHitPercentModifier;
 
@@ -246,15 +255,22 @@ export class WIDMonster {
     whatMakesMeDangerous() {
         let explain = {
             monsterName: this.name,
+            affliction: {
+                canAfflict: this.decreasedMaxHitpointsModifier < 1,
+                afflictionFactor: this.afflictionFactor,
+                afflictionEffect: this.decreasedMaxHitpointsModifier
+            }
         };
 
         if(this.canNormalAttack && (this.normalAttackMaxHit > this.specialAttackMaxHit)) {
             explain.bestAttackName = "Normal Attack";
             explain.maxHit = this.normalAttackMaxHit;
             explain.effectiveMaxHit = this.effectiveNormalAttackMaxHit;
-            explain.attackStyle = this.normalAttackStyle;
+            explain.attackStyle = this.attackStyle;
 
             const [equation, vars] = WidMonsterUtil.maxHitEquationHTML(
+                this.monsterId,
+                this.afflictionFactor,
                 this.normalAttackMaxHit, 
                 this.conditionDamageMultiplier, 
                 this.safetyFactor, 
@@ -269,9 +285,12 @@ export class WIDMonster {
             explain.bestAttackName = this.maxHittingSpecialAttack.specialAttackName;
             explain.maxHit = this.specialAttackMaxHit;
             explain.effectiveMaxHit = this.effectiveSpecialAttackMaxHit;
-            explain.attackStyle = this.maxHittingSpecialAttack.originalSpecialAttack.attackStyle;
+            //explain.attackStyle = this.maxHittingSpecialAttack.originalSpecialAttack.attackStyle;
+            explain.attackStyle = this.attackStyle;
 
             const [equation, vars] = WidMonsterUtil.maxHitEquationHTML(
+                this.monsterId,
+                this.afflictionFactor,
                 this.specialAttackMaxHit, 
                 this.conditionDamageMultiplier, 
                 this.safetyFactor, 

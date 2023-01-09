@@ -38,6 +38,8 @@ export class CombatResolver {
         }
     }
 
+    _monsterTabTippys = [];
+
     constructor() {
 
     }
@@ -81,11 +83,7 @@ export class CombatResolver {
         equationPopup.appendChild(equationPopupVarDescription);
         document.body.appendChild(equationPopup);
         this.equationPopup = equationPopup;
-
-
-
         // ! EQUATION POPUP STUFF !
-
 
         // Tab element
         this.tabComponent = createElement('div', {
@@ -134,7 +132,6 @@ export class CombatResolver {
                 e.stopPropagation();
                 this.handleMonsterTabClick(e);
             }
-            
         }
 
         header.onclick = () => {
@@ -201,14 +198,7 @@ export class CombatResolver {
 
         if(!mostDangerousMonster) return;
 
-        this.currentSurvivabilityState = {
-            ...this.currentSurvivabilityState,
-            maxHit: mostDangerousMonster.maxHit,
-            effectiveMaxHit: mostDangerousMonster.effectiveMaxHit,
-            maxHitReason: mostDangerousMonster.whatMakesMeDangerous(),
-            canDie: mostDangerousMonster.effectiveMaxHit >= this.currentSurvivabilityState.autoEatThreshold,
-            playerSelfHit: mostDangerousMonster.effectiveDamageTakenPerAttack
-        }
+        this._updateSurvivabilityState(mostDangerousMonster);
 
         this._tabOpen = false;
         this.selectedMonsterTab = 0;
@@ -251,19 +241,43 @@ export class CombatResolver {
             return;
         }
 
-        this.monsterTabContainer.classList.remove('wid-monster-tabs-invisible');
+        this._monsterTabTippys.forEach(t => t.destroy());
 
-        let buttons = ``;
+        this.monsterTabContainer.classList.remove('wid-monster-tabs-invisible');
+        
+        const buttons = [];
+
         let i = 1;
 
-        for(const widMonster of this.currentSurvivabilityState.widMonsters) {
+        for(const widMonster of this.currentSurvivabilityState.uniqueMonsters) {
             if(i > 6) break;
+
             const active = this.selectedMonsterTab === i-1 ? 'wid-monster-tab-active' : '';
-            buttons += `<div class = "wid-monster-tab ${active}" data-index="${i-1}">${i}</div>`;
+            const classes = active ? ["wid-monster-tab", "wid-monster-tab-active"] : ["wid-monster-tab"];
+
+            const button = createElement('div', {
+                classList: classes
+            });
+
+            // TODO: Somehow don't render monster image if player is worse
+            button.style.backgroundImage =  `url('${widMonster.media}')`;
+            button.dataset.index = i - 1;
+
+            const tip = tippy(button, {
+                content: widMonster.name,
+                placement: 'left',
+                allowHTML: false,
+                interactive: false,
+                animation: false,
+                touch: 'hold'
+            });
+
+            this._monsterTabTippys.push(tip);
+            buttons.push(button);
             i++;
         }
 
-        this.monsterTabContainer.innerHTML = buttons;
+        this.monsterTabContainer.replaceChildren(...buttons);
     }
 
     // Rerenders all the DOM elements related to this mod with new values
@@ -298,10 +312,17 @@ export class CombatResolver {
             playerIsWorseThanEnemy,
             playerCanKillSelf,
             playerSelfHit,
+            normalAutoEatThreshold,
             widMonsters
         } = this.currentSurvivabilityState;
 
         const numberOrderStrings = ['', 'second ', 'third ', 'fourth ', 'fifth ', 'sixth ', 'seventh ', 'eighth ', 'ninth ', 'tenth '];
+
+        const afflictionMessage = maxHitReason.affliction.canAfflict ? `WARNING - 
+                <span class = "cr-hl cr-hl-enemy">${maxHitReason.monsterName}</span> is able to cast 
+                <span class = "cr-hl cr-hl-spec">AFFLICTION</span>, reducing your auto eat treshold from 
+                <span class = "cr-hl cr-hl-health">${normalAutoEatThreshold}</span> to 
+                <span class = "cr-hl cr-hl-dmg">${autoEatThreshold}</span><br/><br/>` : "";
 
         if(canDie || playerCanKillSelf) {
             this.tabButton.textContent = "DANGER";
@@ -318,21 +339,23 @@ export class CombatResolver {
                 this.tabContent.innerHTML = `<span class = "cr-hl cr-hl-warn">YOU COULD DIE.</span><br/><br/>
                 In the ${numberOrderStrings[this.selectedMonsterTab]}worst case, a player named 
                 <span class = "cr-hl cr-hl-enemy">${game.characterName}</span> in 
-                <span class = "cr-hl cr-hl-area">their mom's basement</span> could hit themselves for 
+                <span class = "cr-hl cr-hl-area">their gaming chair</span> could hit themselves for 
                 <span class = "cr-hl cr-hl-dmg">${playerSelfHit}</span>.<br/><br/>As
                 <span class = "cr-hl cr-hl-dmg">${playerSelfHit}</span> is greater than your auto-eat threshold of 
                 <span class = "cr-hl cr-hl-health">${autoEatThreshold}</span>,
                 <span class = "cr-hl cr-hl-enemy">this silly mistake</span> could kill you.`;
             } else {
+
                 this.tabContent.innerHTML = `<span class = "cr-hl cr-hl-warn">YOU COULD DIE.</span><br/><br/>
                 In the ${numberOrderStrings[this.selectedMonsterTab]}worst case, a monster named 
                 <span class = "cr-hl cr-hl-enemy">${maxHitReason.monsterName}</span> in 
                 <span class = "cr-hl cr-hl-area">${areaName}</span> could perform 
-                <span class = "cr-hl cr-hl-spec">${maxHitReason.bestAttackName}</span> and hit you for 
+                <span class = "cr-hl cr-hl-spec">${maxHitReason.bestAttackName}</span> (<span class = "cr-hl cr-hl-style-${maxHitReason.attackStyle}">${maxHitReason.attackStyle}</span>) and hit you for 
                 <span class = "cr-hl cr-hl-dmg">${effectiveMaxHit}</span> after damage reduction.<br/><br/>As
                 <span class = "cr-hl cr-hl-dmg">${effectiveMaxHit}</span> is greater than your auto-eat threshold of 
                 <span class = "cr-hl cr-hl-health">${autoEatThreshold}</span>,
                 <span class = "cr-hl cr-hl-enemy">${maxHitReason.monsterName}</span> could kill you.<br/><br/>` +
+                afflictionMessage +
                 `${this.showCalculations ? maxHitReason.equation : ''}`;
             }
             
@@ -354,23 +377,25 @@ export class CombatResolver {
                 In the ${numberOrderStrings[this.selectedMonsterTab]}worst case, a monster named 
                 <span class = "cr-hl cr-hl-enemy">${maxHitReason.monsterName}</span> in 
                 <span class = "cr-hl cr-hl-area">${areaName}</span> could perform 
-                <span class = "cr-hl cr-hl-spec">${maxHitReason.bestAttackName}</span> and hit you for 
+                <span class = "cr-hl cr-hl-spec">${maxHitReason.bestAttackName}</span> (<span class = "cr-hl cr-hl-style-${maxHitReason.attackStyle}">${maxHitReason.attackStyle}</span>) and hit you for 
                 <span class = "cr-hl cr-hl-dmg">${effectiveMaxHit}</span> after damage reduction.<br/><br/>As
                 <span class = "cr-hl cr-hl-dmg">${effectiveMaxHit}</span> is less than your auto-eat threshold of 
                 <span class = "cr-hl cr-hl-health">${autoEatThreshold}</span>,
-                <span class = "cr-hl cr-hl-enemy">${maxHitReason.monsterName}</span> shouldn't be able to kill you.<br/><br/>
-                <span class = "cr-hl-warn">THESE VALUES MIGHT NOT BE CORRECT, BECAUSE RECALCULATION IS NEEDED.</span><br/><br/>
+                <span class = "cr-hl cr-hl-enemy">${maxHitReason.monsterName}</span> shouldn't be able to kill you.<br/><br/>` +
+                afflictionMessage +
+                `<span class = "cr-hl-warn">THESE VALUES MIGHT NOT BE CORRECT, BECAUSE RECALCULATION IS NEEDED.</span><br/><br/>
                 <span class = "cr-hl-warn">LEAVE COMBAT TO RECALCULATE SURVIVABILITY</span>`;
             } else {
                 this.tabContent.innerHTML = `<span class = "cr-hl cr-hl-ok">YOU SHOULD BE SAFE.</span><br/><br/>
                 In the ${numberOrderStrings[this.selectedMonsterTab]}worst case, a monster named 
                 <span class = "cr-hl cr-hl-enemy">${maxHitReason.monsterName}</span> in 
                 <span class = "cr-hl cr-hl-area">${areaName}</span> could perform 
-                <span class = "cr-hl cr-hl-spec">${maxHitReason.bestAttackName}</span> and hit you for 
+                <span class = "cr-hl cr-hl-spec">${maxHitReason.bestAttackName}</span> (<span class = "cr-hl cr-hl-style-${maxHitReason.attackStyle}">${maxHitReason.attackStyle}</span>) and hit you for 
                 <span class = "cr-hl cr-hl-dmg">${effectiveMaxHit}</span> after damage reduction.<br/><br/>As
                 <span class = "cr-hl cr-hl-dmg">${effectiveMaxHit}</span> is less than your auto-eat threshold of 
                 <span class = "cr-hl cr-hl-health">${autoEatThreshold}</span>,
-                <span class = "cr-hl cr-hl-enemy">${maxHitReason.monsterName}</span> shouldn't be able to kill you.` +
+                <span class = "cr-hl cr-hl-enemy">${maxHitReason.monsterName}</span> shouldn't be able to kill you.<br/><br/>` +
+                afflictionMessage +
                 `${this.showCalculations ? maxHitReason.equation : ''}`;
             }
             
@@ -618,7 +643,7 @@ export class CombatResolver {
         widMonsters.sort((a, b) => b.effectiveMaxHit - a.effectiveMaxHit);
         const mostDangerousMonster = widMonsters[0];
 
-        const autoEatThreshold = this._getAutoEatThreshold(mostDangerousMonster.decreasedMaxHitpointsModifier);
+        const area = areas.find(a => a.monsters.find(m => m.id === mostDangerousMonster.monsterId));
 
         if(this._debug) {
             this._debugValues.monsters = widMonsters;
@@ -626,35 +651,7 @@ export class CombatResolver {
             this._debugValues.player.damageReduction = mostDangerousMonster._playerDamageReduction;
         }
 
-        const playerIsWorseThanEnemy = mostDangerousMonster.effectiveDamageTakenPerAttack > mostDangerousMonster.effectiveMaxHit;
-        const playerCanKillSelf = (mostDangerousMonster.effectiveDamageTakenPerAttack >= autoEatThreshold && playerIsWorseThanEnemy);
-
-        const area = areas.find(a => a.monsters.find(m => m.id === mostDangerousMonster.monsterId));
-        let areaName = area ? area.name : "Unknown";
-
-        const uniqueMonsters = widMonsters.filter((v, i, self) =>
-            i === self.findIndex((t) => (
-                t.monsterId === v.monsterId
-            ))
-        );
-
-        uniqueMonsters.sort((a, b) => b.effectiveMaxHit - a.effectiveMaxHit);
-
-        this.currentSurvivabilityState = {
-            maxHit: mostDangerousMonster.maxHit,
-            effectiveMaxHit: mostDangerousMonster.effectiveMaxHit,
-            maxHitReason: mostDangerousMonster.whatMakesMeDangerous(),
-            canDie: mostDangerousMonster.effectiveMaxHit >= autoEatThreshold,
-            autoEatThreshold,
-            areaName,
-
-            playerSelfHit: mostDangerousMonster.effectiveDamageTakenPerAttack,
-            playerIsWorseThanEnemy,
-            playerCanKillSelf,
-
-            widMonsters,
-            uniqueMonsters
-        }
+        this._updateSurvivabilityState(mostDangerousMonster, area, widMonsters);
         this.pendingRecalculation = false;
         this._reRender();
     }
@@ -703,17 +700,53 @@ export class CombatResolver {
             return;
 
         const mostDangerousMonster = this.currentSurvivabilityState.uniqueMonsters[index];
+        
+        if(this._debug)
+            this._debugValues.mostDangerousMonster = mostDangerousMonster;
 
-        this.currentSurvivabilityState = {
-            ...this.currentSurvivabilityState,
-            maxHit: mostDangerousMonster.maxHit,
-            effectiveMaxHit: mostDangerousMonster.effectiveMaxHit,
-            maxHitReason: mostDangerousMonster.whatMakesMeDangerous(),
-            canDie: mostDangerousMonster.effectiveMaxHit >= this.currentSurvivabilityState.autoEatThreshold,
-            playerSelfHit: mostDangerousMonster.effectiveDamageTakenPerAttack
-        }
+        this._updateSurvivabilityState(mostDangerousMonster);
 
         this.selectedMonsterTab = index;
         this._reRender();
+    }
+
+    _updateSurvivabilityState(monster, area, widMonsters) {
+        if(this._debug)
+            this._debugValues.mostDangerousMonster = monster;
+
+        const autoEatThreshold = this._getAutoEatThreshold(monster.decreasedMaxHitpointsModifier);
+        const normalAutoEatThreshold = this._getAutoEatThreshold();
+
+        const playerIsWorseThanEnemy = monster.effectiveDamageTakenPerAttack > monster.effectiveMaxHit;
+        const playerCanKillSelf = (monster.effectiveDamageTakenPerAttack >= autoEatThreshold && playerIsWorseThanEnemy);
+
+        this.currentSurvivabilityState = {
+            ...this.currentSurvivabilityState,
+            playerIsWorseThanEnemy,
+            playerCanKillSelf,
+            maxHit: monster.maxHit,
+            effectiveMaxHit: monster.effectiveMaxHit,
+            maxHitReason: monster.whatMakesMeDangerous(),
+            canDie: monster.effectiveMaxHit >= autoEatThreshold,
+            autoEatThreshold,
+            normalAutoEatThreshold,
+            playerSelfHit: monster.effectiveDamageTakenPerAttack
+        }
+
+        if(area && widMonsters) {
+            const areaName = area ? area.name : "Unknown";
+
+            const uniqueMonsters = widMonsters.filter((v, i, self) =>
+                i === self.findIndex((t) => (
+                    t.monsterId === v.monsterId
+                ))
+            );
+
+            uniqueMonsters.sort((a, b) => b.effectiveMaxHit - a.effectiveMaxHit);
+            
+            this.currentSurvivabilityState.areaName = areaName;
+            this.currentSurvivabilityState.uniqueMonsters = uniqueMonsters;
+            this.currentSurvivabilityState.widMonsters = widMonsters;
+        }          
     }
 }

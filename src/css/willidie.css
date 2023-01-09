@@ -97,10 +97,14 @@
 #will-i-die-header-tab-dropdown > .dropdown-header {
     color: #ecf0f1;
     font-weight: bold;
+    padding: 5px 10px 10px 10px !important;
+    margin-bottom: 0 !important;
 }
 
 .combat-resolver-tab-content {
     color: #f5f5f5;
+    padding-bottom: 10px !important;
+    padding: 10px;
 }
 
 .cr-hl {
@@ -115,6 +119,10 @@
 .cr-hl-block { color: #2980b9; }
 .cr-hl-spec { color: #9b59b6; }
 .cr-hl-health { color: #16a085; }
+
+.cr-hl-style-ranged { color: #27ae60; }
+.cr-hl-style-magic { color: #2980b9; }
+.cr-hl-style-melee { color: #f39c12; }
 
 .cr-eq-container {
     font-family: 'Courier New', Courier, monospace;
@@ -246,13 +254,13 @@
     z-index: 9999;
     background-color: #383e47;
     border: solid 1px #fff;
-    width: 45px;
+    width: 50px;
     height: 268px;
-    left: -50px;
+    left: -55px;
     top: 0;
     box-sizing: border-box;
-    gap: 5px;
-    padding: 5px;
+    gap: 0px;
+    padding: 0px;
     overflow: hidden;
 
     display: -ms-flexbox;
@@ -264,7 +272,7 @@
     -webkit-flex-wrap: nowrap;
     -ms-flex-wrap: nowrap;
     flex-wrap: nowrap;
-    -webkit-justify-content: space-around;
+    -webkit-justify-content: space-evenly;
     -ms-flex-pack: center;
     justify-content: space-around;
     -webkit-align-content: center;
@@ -280,24 +288,29 @@
 }
 
 .wid-monster-tab {
-    width: 35px;
-    height: 35px;
+    width: 40px;
+    height: 40px;
 
-    background-color: #3261cf;
-    color: white;
+    background-color: #bdc3c7;
+
+    /*color: white;
     font-size: 14pt;
-
     text-align: center;
-    line-height: 35px;
+    line-height: 35px;*/
+
+    background-size: 80%;
+    background-repeat: no-repeat;
+    background-position: 50%;
+    border-radius: 2px;
+    box-sizing: border-box;
 }
 
 .wid-monster-tab-active {
-    background-color: #29a877;
+    border: 2px solid #e74c3c;
 }
 
 .wid-monster-tab:hover {
     transform-origin: 50% 50%;
     transform: scale(0.95);
     cursor: pointer;
-    background-color: #5180ed;
 }

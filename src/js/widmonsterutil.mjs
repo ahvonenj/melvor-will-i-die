@@ -1,8 +1,8 @@
 export class WidMonsterUtil {
     static getMonsterSpecificBullshit(monsterId, afflictionFactor) {
-        let increasedMaxHitPercentModifier = 1;
+        let increasedMaxHitPercentModifier = 0;
         let increasedMaxHitFlatModifier = 0;
-        let decreasedMaxHitpointsModifier = 1;
+        let decreasedMaxHitpointsModifier = 0;
         let decreasedDamageReductionModifier = 0;
 
         switch(monsterId) {
@@ -75,7 +75,7 @@ export class WidMonsterUtil {
         }
 
         return {
-            increasedMaxHitPercentModifier: 1 + (increasedMaxHitFlatModifier / 100),
+            increasedMaxHitPercentModifier: 1 + (increasedMaxHitPercentModifier / 100),
             increasedMaxHitFlatModifier,
             decreasedMaxHitpointsModifier: 1 - (decreasedMaxHitpointsModifier / 100),
             decreasedDamageReductionModifier
@@ -118,36 +118,56 @@ export class WidMonsterUtil {
         //const decreasedHitpointsOnhits = availableAttacks.filter(a => a.attack.prehitEffects.filter((e) => Object.keys(e.modifiers).some(m => m === "decreasedMaxHitpoints")).length > 0).map(a => a.attack.onhitEffects);
     }
 
-    static maxHitEquationHTML(maxHit, totalDamageMultiplier, safetyFactor, monsterPassiveDecreasedPlayerDamageReduction, playerDamageReduction, combatTriangleMultiplier) {
+    static maxHitEquationHTML(monsterId, afflictionFactor, maxHit, totalDamageMultiplier, safetyFactor, monsterPassiveDecreasedPlayerDamageReduction, playerDamageReduction, combatTriangleMultiplier) {
 
-        const dmgs = maxHit * totalDamageMultiplier * safetyFactor;
-        const pred = playerDamageReduction - monsterPassiveDecreasedPlayerDamageReduction < 0 ? 0 : playerDamageReduction - monsterPassiveDecreasedPlayerDamageReduction;
-        const reds = Math.round(((1 - (Math.floor(pred * combatTriangleMultiplier) / 100)) + Number.EPSILON) * 100) / 100 ;
+        const {
+            increasedMaxHitPercentModifier,
+            increasedMaxHitFlatModifier,
+            decreasedMaxHitpointsModifier,
+            decreasedDamageReductionModifier
+        } = WidMonsterUtil.getMonsterSpecificBullshit(monsterId, afflictionFactor);
+
+        const dmgs = Math.round((((maxHit + increasedMaxHitFlatModifier) * totalDamageMultiplier * safetyFactor * increasedMaxHitPercentModifier) + Number.EPSILON) * 100) / 100;
+        
+        const pred = playerDamageReduction - monsterPassiveDecreasedPlayerDamageReduction - decreasedDamageReductionModifier;
+
+        const predClamped = pred < 0 ? 0 : pred;
+
+        const reds = Math.round(((1 - (Math.floor(predClamped * combatTriangleMultiplier) / 100)) + Number.EPSILON) * 100) / 100 ;
         const effective = Math.round(dmgs * reds);
+
         const vars = {
-            "cr-eq-var-1":  { description: "Max hit", name: "I", value: maxHit },
-            "cr-eq-var-2":  { description: "Cond. dmg +% (stun etc.)", name: "J", value: totalDamageMultiplier },
-            "cr-eq-var-3":  { description: "Safety factor", name: "K", value: safetyFactor },
-            "cr-eq-var-4":  { description: "Decreased DR", name: "L", value: monsterPassiveDecreasedPlayerDamageReduction },
-            "cr-eq-var-5":  { description: "Player DR", name: "M", value: playerDamageReduction },
-            "cr-eq-var-6":  { description: "Combat triangle", name: "N", value: combatTriangleMultiplier },
-            "cr-eq-var-7":  { description: "Total dmg", name: "O", intermediary: 'I * J * K', value: dmgs },
-            "cr-eq-var-8":  { description: "DR after reduction", name: "P", intermediary: 'M - L < 0 ? 0 : M - L', value: pred },
-            "cr-eq-var-9":  { description: "Final DR", name: "Q", intermediary: '1 - (Math.floor(P * N) / 100)', value: reds },
-            "cr-eq-var-10": { description: "Effective max hit", name: "R", intermediary: 'Math.round(O * Q)', value: effective }
+            "cr-eq-var-1":  { description: "Max hit", name: "MH", value: maxHit },
+            "cr-eq-var-2":  { description: "Cond. dmg +% (stun etc.)", name: "CD", value: totalDamageMultiplier },
+            "cr-eq-var-3":  { description: "Safety factor", name: "SF", value: safetyFactor },
+            "cr-eq-var-4":  { description: "Decreased DR", name: "DDR", value: monsterPassiveDecreasedPlayerDamageReduction },
+            "cr-eq-var-5":  { description: "Player DR", name: "PDR", value: playerDamageReduction },
+            "cr-eq-var-11":  { description: "Monster Inc. flat max hit mod.", name: "MFMH", value: increasedMaxHitFlatModifier },
+            "cr-eq-var-12":  { description: "Monster Inc. % max hit mod.", name: "MPMH", value: increasedMaxHitPercentModifier },
+            "cr-eq-var-13":  { description: "Monster Dec. % DR mod.", name: "MDDR", value: decreasedDamageReductionModifier },
+            "cr-eq-var-6":  { description: "Combat triangle", name: "CBT", value: combatTriangleMultiplier },
+            "cr-eq-var-14":  { description: "DR after reduction", name: "DRR", intermediary: 'PDR - DDR - MDDR', value: pred },
+            "cr-eq-var-8":  { description: "Clamped DR", name: "DRC", intermediary: 'DRR < 0 ? 0 : DRR', value: predClamped },
+            "cr-eq-var-7":  { description: "Total dmg", name: "TDMG", intermediary: '(MH + MFMH) * CD * SF * MPMH', value: dmgs },
+            "cr-eq-var-9":  { description: "Final DR", name: "FDR", intermediary: '1 - (Math.floor(DRR * CBT) / 100)', value: reds },
+            "cr-eq-var-10": { description: "Effective max hit", name: "EFMH", intermediary: 'Math.round(TDMG * FDR)', value: effective }
         }
 
         return [`<div class = "cr-eq-container">` + 
-        `<span class = "cr-eq-var cr-eq-var-1">I</span> = <span class = "cr-eq-val">${maxHit}</span><br/>` +
-        `<span class = "cr-eq-var cr-eq-var-2">J</span><span class = "cr-eq-calc"> = </span><span class = "cr-eq-val">${totalDamageMultiplier}</span><br/>` +
-        `<span class = "cr-eq-var cr-eq-var-3">K</span><span class = "cr-eq-calc"> = </span><span class = "cr-eq-val">${safetyFactor}</span><br/>` +
-        `<span class = "cr-eq-var cr-eq-var-4">L</span><span class = "cr-eq-calc"> = </span><span class = "cr-eq-val">${monsterPassiveDecreasedPlayerDamageReduction}</span><br/>` +
-        `<span class = "cr-eq-var cr-eq-var-5">M</span><span class = "cr-eq-calc"> = </span><span class = "cr-eq-val">${playerDamageReduction}</span><br/>` +   
-        `<span class = "cr-eq-var cr-eq-var-6">N</span><span class = "cr-eq-calc"> = </span><span class = "cr-eq-val">${combatTriangleMultiplier}</span><br/>` +
-        `<span class = "cr-eq-var cr-eq-var-7">O</span><span class = "cr-eq-calc"> = <span class = "cr-eq-var cr-eq-var-1">I</span> * <span class = "cr-eq-var cr-eq-var-2">J</span> * <span class = "cr-eq-var cr-eq-var-3">K</span> = </span><span class = "cr-eq-val">${dmgs}</span><br/>` +
-        `<span class = "cr-eq-var cr-eq-var-8">P</span><span class = "cr-eq-calc"> = (<span class = "cr-eq-var cr-eq-var-5">M</span> - <span class = "cr-eq-var cr-eq-var-4">L</span> < 0 ? 0 : <span class = "cr-eq-var cr-eq-var-5">M</span> - <span class = "cr-eq-var cr-eq-var-4">L</span>) = </span><span class = "cr-eq-val">${pred}</span><br/>` +
-        `<span class = "cr-eq-var cr-eq-var-9">Q</span><span class = "cr-eq-calc"> = (1 - (Math.floor(<span class = "cr-eq-var cr-eq-var-8">P</span> * <span class = "cr-eq-var cr-eq-var-6">N</span>) / 100)) = </span><span class = "cr-eq-val">${reds}</span><br/>` +
-        `<span class = "cr-eq-var cr-eq-var-10">R</span><span class = "cr-eq-calc"> = Math.round(<span class = "cr-eq-var cr-eq-var-7">O</span> * <span class = "cr-eq-var cr-eq-var-9">Q</span>) = </span><span class = "cr-eq-val">${effective}</span>` +
+        `<span class = "cr-eq-var cr-eq-var-1">MH</span> = <span class = "cr-eq-val">${maxHit}</span><br/>` +
+        `<span class = "cr-eq-var cr-eq-var-2">CDD</span><span class = "cr-eq-calc"> = </span><span class = "cr-eq-val">${totalDamageMultiplier}</span><br/>` +
+        `<span class = "cr-eq-var cr-eq-var-3">SF</span><span class = "cr-eq-calc"> = </span><span class = "cr-eq-val">${safetyFactor}</span><br/>` +
+        `<span class = "cr-eq-var cr-eq-var-4">DDR</span><span class = "cr-eq-calc"> = </span><span class = "cr-eq-val">${monsterPassiveDecreasedPlayerDamageReduction}</span><br/>` +
+        `<span class = "cr-eq-var cr-eq-var-5">PDR</span><span class = "cr-eq-calc"> = </span><span class = "cr-eq-val">${playerDamageReduction}</span><br/>` +   
+        `<span class = "cr-eq-var cr-eq-var-11">MFMH</span><span class = "cr-eq-calc"> = </span><span class = "cr-eq-val">${increasedMaxHitFlatModifier}</span><br/>` +   
+        `<span class = "cr-eq-var cr-eq-var-12">MPMH</span><span class = "cr-eq-calc"> = </span><span class = "cr-eq-val">${increasedMaxHitPercentModifier}</span><br/>` +   
+        `<span class = "cr-eq-var cr-eq-var-13">MDDR</span><span class = "cr-eq-calc"> = </span><span class = "cr-eq-val">${decreasedDamageReductionModifier}</span><br/>` +   
+        `<span class = "cr-eq-var cr-eq-var-6">CBT</span><span class = "cr-eq-calc"> = </span><span class = "cr-eq-val">${combatTriangleMultiplier}</span><br/>` +
+        `<span class = "cr-eq-var cr-eq-var-14">DRR</span><span class = "cr-eq-calc"> = </span><span class = "cr-eq-var cr-eq-var-5">PDR</span> - <span class = "cr-eq-var cr-eq-var-4">DDR</span> - <span class = "cr-eq-var cr-eq-var-13">MDDR</span> = </span><span class = "cr-eq-val">${pred}</span><br/>` +
+        `<span class = "cr-eq-var cr-eq-var-8">DRC</span><span class = "cr-eq-calc"> = <span class = "cr-eq-var cr-eq-var-14">DRR</span> < 0 ? 0 : <span class = "cr-eq-var cr-eq-var-14">DRR</span> = </span><span class = "cr-eq-val">${predClamped}</span><br/><br/>` +
+        `<span class = "cr-eq-var cr-eq-var-7">TDMG</span><span class = "cr-eq-calc"> = (<span class = "cr-eq-var cr-eq-var-1">MH</span> + <span class = "cr-eq-var cr-eq-var-11">MFMH</span>) * <span class = "cr-eq-var cr-eq-var-2">CD</span> * <span class = "cr-eq-var cr-eq-var-3">SF</span> * <span class = "cr-eq-var cr-eq-var-12">MPMH</span> = </span><span class = "cr-eq-val">${dmgs}</span><br/><br/>` +
+        `<span class = "cr-eq-var cr-eq-var-9">FDR</span><span class = "cr-eq-calc"> = (1 - (Math.floor(<span class = "cr-eq-var cr-eq-var-8">DRR</span> * <span class = "cr-eq-var cr-eq-var-6">CBT</span>) / 100)) = </span><span class = "cr-eq-val">${reds}</span><br/><br/>` +
+        `<span class = "cr-eq-var cr-eq-var-10">EFMH</span><span class = "cr-eq-calc"> = Math.round(<span class = "cr-eq-var cr-eq-var-7">TDMG</span> * <span class = "cr-eq-var cr-eq-var-9">FDR</span>) = </span><span class = "cr-eq-val">${effective}</span>` +
         `</div>`, vars];
     }
 
