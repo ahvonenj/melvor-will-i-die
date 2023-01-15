@@ -631,7 +631,7 @@ export class CombatResolver {
     recalculateSurvivability(reason = "", areaOrMonster, target) {
 
         if(game.combat.fightInProgress || game.combat.isActive) {
-            this._log(`WillIDie: Fight in progress, not calculating survivability`);
+            this._log(`WillIDie: Fight in progress, not calculating survivability (${reason})`);
             this.pendingRecalculation = true;
             this._reRender();
             return;
