@@ -332,8 +332,12 @@ export class WIDMonster {
         attack.damage.forEach((damage)=>{
             const dmg = this._getMaxDamage(damage);
 
-            if(dmg > calcDamage)
-                calcDamage = dmg;
+            if(attack.id === "melvorF:SavageSpike") {
+                calcDamage += dmg;
+            } else {
+                if(dmg > calcDamage)
+                    calcDamage = dmg;
+            }
         });
         
         return calcDamage;

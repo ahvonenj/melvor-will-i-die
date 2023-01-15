@@ -6,11 +6,14 @@ export class CombatResolver {
     targetMonster = null;
     targetSlayerTask = null;
     currentSurvivabilityState = null;
+    survivabilityStateError = 0;
+    targetType = null;
     
     tabComponent = null; 
     tabButton = null;
     tabContent = null;
     safetyFactorElement = null;
+    semiIntegrationElement = null;
     monsterTabContainer = null;
     equationPopup = null;
 
@@ -18,6 +21,8 @@ export class CombatResolver {
     afflictionFactor = 20;
     skipRequirements = false;
     showCalculations = false;
+
+    integrateSemiAutoSlayer = false;
 
     pendingRecalculation = false;
 
@@ -113,13 +118,26 @@ export class CombatResolver {
         });
 
         const header = createElement('div', {
-            classList: ["dropdown-header"],
+            classList: ["dropdown-header"]
+        });
+
+        const header_left = createElement('div', {
+            classList: ["dropdown-header-left"],
             text: "Will I Die?"
+        });
+
+        const header_right = createElement('div', {
+            classList: ["dropdown-header-right"]
         });
 
         this.safetyFactorElement = createElement('div', {
             classList: ["wid-safety-factor"],
             text: `Safety Factor: ${this.safetyFactor}x`
+        });
+
+        this.semiIntegrationElement = createElement('div', {
+            classList: ["wid-semi-integrated"],
+            text: this.integrateSemiAutoSlayer ? "Integrated with SEMI" : ""
         });
 
         this.monsterTabContainer = createElement('div', {
@@ -134,9 +152,15 @@ export class CombatResolver {
             }
         }
 
-        header.onclick = () => {
+        header_left.onclick = () => {
             this._printDebugValues();
         }
+
+        header_right.appendChild(this.safetyFactorElement)
+        header_right.appendChild(this.semiIntegrationElement)
+
+        header.appendChild(header_left);
+        header.appendChild(header_right);
 
         dropdown.appendChild(createElement('div', {
             classList: ["p-2", "text-center"]
@@ -179,7 +203,6 @@ export class CombatResolver {
             }
         }
 
-        dropdown.appendChild(this.safetyFactorElement);
         dropdown.appendChild(this.monsterTabContainer);
         dropdown.appendChild(this.tabContent);
         this.tabComponent.appendChild(dropdown);
@@ -212,6 +235,7 @@ export class CombatResolver {
         console.log("Target area", this.targetArea);
         console.log("Target Monster", this.targetMonster);
         console.log("Target Slayer Task", this.targetSlayerTask);
+        console.log("Target type", this.targetType);
         console.log("Current survivability state", this.currentSurvivabilityState);
         console.log("Monsters", this._debugValues.monsters);
         console.log("Most dangerous monster", this._debugValues.mostDangerousMonster);
@@ -232,6 +256,14 @@ export class CombatResolver {
             this.safetyFactorElement.classList.add('wid-safety-factor-danger');
         } else if(this.safetyFactor < 1.07) {
             this.safetyFactorElement.classList.add('wid-safety-factor-warning');
+        }
+    }
+
+    _reRenderIntegration() {
+        if(!this.integrateSemiAutoSlayer) {
+            this.semiIntegrationElement.classList.add('wid-semi-integration-disabled');
+        } else {
+            this.semiIntegrationElement.classList.remove('wid-semi-integration-disabled');
         }
     }
 
@@ -286,6 +318,22 @@ export class CombatResolver {
 
         this._log(`WillIDie: Rerendering`);
 
+        if(this.survivabilityStateError === 1) {
+            this.tabButton.textContent = "?";
+            this.tabButton.classList.remove('combat-resolver-safe');
+            this.tabButton.classList.remove('combat-resolver-danger');
+            this.tabButton.classList.add('combat-resolver-unknown');
+
+            this.tabContent.innerHTML = `WillIDie is currently unable to calculate your survivability.<br/><br/>
+            This is likely due to trying to target a slayer tier with SEMI Auto Slayer integration enabled,
+            but your current task block list is filtering out all tasks in that tier.<br/><br/>`;
+
+            this._reRenderMonsterTabs();
+            this._reRenderSafetyFactor();
+            this._reRenderIntegration();
+            return;
+        }
+
         // No area target selected or some other issue - can't tell if safe or not so we render ?
         if(!this.currentSurvivabilityState) {
             this.tabButton.textContent = "?";
@@ -299,6 +347,7 @@ export class CombatResolver {
 
             this._reRenderMonsterTabs();
             this._reRenderSafetyFactor();
+            this._reRenderIntegration();
             return;
         }
 
@@ -361,6 +410,7 @@ export class CombatResolver {
             
             this._reRenderMonsterTabs();
             this._reRenderSafetyFactor();
+            this._reRenderIntegration();
         }
         else {
             this.tabButton.textContent = "SAFE";
@@ -401,6 +451,7 @@ export class CombatResolver {
             
             this._reRenderMonsterTabs();
             this._reRenderSafetyFactor();
+            this._reRenderIntegration();
         }
     }
 
@@ -615,19 +666,19 @@ export class CombatResolver {
             if(this.targetArea && !this.targetMonster && !this.targetSlayerTask) {
                 this._log(`WillIDie: Found unambiguous area target for cold function call, recalculating survivability`);
                 widMonsters = this.targetArea.monsters.map(m => new WIDMonster(m.id, this.targetArea, this.safetyFactor, this.afflictionFactor));
-                areaOrMonster === "AREA";
+                areaOrMonster = "AREA";
                 target = this.targetArea;
             } else if(this.targetMonster && !this.targetArea && !this.targetSlayerTask) {
                 this._log(`WillIDie: Found unambiguous monster target for cold function call, recalculating survivability`);
                 const areaForMonster = areas.find(a => a.monsters.find(m => m.id === this.targetMonster))
                 widMonsters = [new WIDMonster(this.targetMonster, areaForMonster, this.safetyFactor, this.afflictionFactor)];
-                areaOrMonster === "MONSTER";
+                areaOrMonster = "MONSTER";
                 target = this.targetMonster;
             } else if(this.targetSlayerTask && !this.targetArea && !this.targetMonster) {
                 this._log(`WillIDie: Found unambiguous slayer target for cold function call, recalculating survivability`);
                 const areaForMonster = areas.find(a => a.monsters.find(m => m.id === this.targetSlayerTask[0].id))
                 widMonsters = this.targetSlayerTask.map(m => new WIDMonster(m.id, areaForMonster, this.safetyFactor, this.afflictionFactor));
-                areaOrMonster === "SLAYER";
+                areaOrMonster = "SLAYER";
                 target = this.targetSlayerTask;
             } else {
                 this._log(`WillIDie: Could not resolve cold function call, not recalculating survivability`);
@@ -640,6 +691,25 @@ export class CombatResolver {
 
         this._log(`WillIDie: Recalculating survivability (${reason})`);
 
+        this.targetType = areaOrMonster;
+
+        if(this.targetType === "SLAYER" && this.integrateSemiAutoSlayer && mod.api.SEMIAutoSlayer !== undefined) {
+            this._log(`WillIDie: SEMI Auto Slayer integration is enabled and possible, filtering out monsters that are blocked in the SEMI Auto Slayer task list`);
+            const blockedBySemi = mod.api.SEMIAutoSlayer.getMonsterStates();
+            widMonsters = widMonsters.filter(m => blockedBySemi[m.monsterId] === undefined || blockedBySemi[m.monsterId] !== 1);
+        }
+
+        if(widMonsters.length === 0) {
+            this._log(`WillIDie: No monsters left after filtering, not recalculating survivability`);
+            this.currentSurvivabilityState = null;
+            this.survivabilityStateError = 1;
+            this._reRender();
+            return;
+        }
+
+        this.survivabilityStateError = 0;
+
+
         widMonsters.sort((a, b) => b.effectiveMaxHit - a.effectiveMaxHit);
         const mostDangerousMonster = widMonsters[0];
 
@@ -651,7 +721,7 @@ export class CombatResolver {
             this._debugValues.player.damageReduction = mostDangerousMonster._playerDamageReduction;
         }
 
-        this._updateSurvivabilityState(mostDangerousMonster, area, widMonsters);
+        this._updateSurvivabilityState(mostDangerousMonster, area, widMonsters, areaOrMonster);
         this.pendingRecalculation = false;
         this._reRender();
     }
@@ -710,7 +780,7 @@ export class CombatResolver {
         this._reRender();
     }
 
-    _updateSurvivabilityState(monster, area, widMonsters) {
+    _updateSurvivabilityState(monster, area, widMonsters, areaOrMonster) {
         if(this._debug)
             this._debugValues.mostDangerousMonster = monster;
 
@@ -747,6 +817,6 @@ export class CombatResolver {
             this.currentSurvivabilityState.areaName = areaName;
             this.currentSurvivabilityState.uniqueMonsters = uniqueMonsters;
             this.currentSurvivabilityState.widMonsters = widMonsters;
-        }          
+        }
     }
 }

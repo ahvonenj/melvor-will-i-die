@@ -7,6 +7,7 @@ export function setup(ctx) {
     const combatResolver = new CombatResolver();
 
     const safetySettings = ctx.settings.section('Safety Factor');
+    const integrationSettings = ctx.settings.section('Mod integration');
     const requirementSettings = ctx.settings.section('Requirements');
     const calculationDisplaySettings = ctx.settings.section('Calculation display');
     const debugSettings = ctx.settings.section('Debug');
@@ -17,6 +18,7 @@ export function setup(ctx) {
                 settings: {
                     safetyfactor: 2,
                     afflictionfactor: 20,
+                    integrate_semi_autoslayer: false,
                     requirements: false,
                     calculations: false,
                     debug: false
@@ -25,6 +27,15 @@ export function setup(ctx) {
 
             const safetyFactorDefault = 1 + (willIDieStorage.settings.safetyfactor / 100);
             const afflictionFactorDefault = willIDieStorage.settings.afflictionfactor;
+
+            let integrateSemiAutoSlayerDefault = false;
+
+            if(mod.api.SEMIAutoSlayer !== undefined) {
+                integrateSemiAutoSlayerDefault = willIDieStorage.settings.integrate_semi_autoslayer;
+            } else {
+                integrateSemiAutoSlayerDefault = false;
+            }
+
             const requirementsDefault = willIDieStorage.settings.requirements;
             const calculationsDefault = willIDieStorage.settings.calculations;
             const debugDefault = willIDieStorage.settings.debug;
@@ -58,6 +69,59 @@ export function setup(ctx) {
                     combatResolver.recalculateSurvivability("Settings changed"); 
                     willIDieStorage.settings.afflictionfactor = newValue;
                     ctx.characterStorage.setItem('willidie', willIDieStorage);
+                }
+            });
+
+            integrationSettings.add({
+                type: 'switch',
+                name: 'integrate_semi_autoslayer',
+                label: 'Integrate Will I Die? With SEMI Auto Slayer',
+                hint: 'This makes Will I Die? to ignore monsters which you have blocked with SEMI Auto Slayer and not show them as monster tabs when targeting a slayer task tier',
+                default: integrateSemiAutoSlayerDefault,
+                onChange: (newValue) => { 
+                    if(mod.api.SEMIAutoSlayer !== undefined) {
+                        if(newValue === true) {
+                            Toastify({
+                                text: `Will I Die?: Successfully integrated with SEMI Auto Slayer`,
+                                duration: 1500,
+                                gravity: 'top',
+                                position: 'center',
+                                backgroundColor: '#30c78d',
+                                stopOnFocus: false
+                            }).showToast();
+
+                            $(document).on('click', `#semi-auto-slayer-container .semi-grid-item`, function(e) { 
+                                combatResolver.recalculateSurvivability("SEMI task settings changed"); 
+                            });
+                        } else {
+                            Toastify({
+                                text: `Will I Die?: Successfully removed integration with SEMI Auto Slayer`,
+                                duration: 1500,
+                                gravity: 'top',
+                                position: 'center',
+                                backgroundColor: '#30c78d',
+                                stopOnFocus: false
+                            }).showToast();
+
+                            $(document).off('click', `#semi-auto-slayer-container .semi-grid-item`);
+                        }
+
+                        combatResolver.integrateSemiAutoSlayer = newValue; 
+                        combatResolver.recalculateSurvivability("Settings changed"); 
+                        willIDieStorage.settings.integrate_semi_autoslayer = newValue;
+                        ctx.characterStorage.setItem('willidie', willIDieStorage);
+                    } else {
+                        Toastify({
+                            text: `Will I Die?: SEMI Auto Slayer is not installed!`,
+                            duration: 1500,
+                            gravity: 'top',
+                            position: 'center',
+                            backgroundColor: '#e56767',
+                            stopOnFocus: false
+                        }).showToast();
+
+                        return false;
+                    }
                 }
             });
         
@@ -107,6 +171,14 @@ export function setup(ctx) {
 
             combatResolver.safetyFactor = safetyFactorDefault;
             combatResolver.afflictionFactor = afflictionFactorDefault;
+            combatResolver.integrateSemiAutoSlayer = integrateSemiAutoSlayerDefault;
+
+            if(integrateSemiAutoSlayerDefault) {
+                $(document).on('click', `#semi-auto-slayer-container .semi-grid-item`, function(e) { 
+                    combatResolver.recalculateSurvivability("SEMI task settings changed"); 
+                });
+            }
+
             combatResolver.skipRequirements = requirementsDefault;
             combatResolver.showCalculations = calculationsDefault;
             combatResolver._debug = debugDefault;
@@ -407,7 +479,8 @@ export function setup(ctx) {
     });
 
     ctx.patch(BaseManager, 'stop').after(() => {
-        combatResolver.recalculateSurvivability("Combat stop");
+        if(!game.combat.fightInProgress && !game.combat.isActive)
+            combatResolver.recalculateSurvivability("Fled combat");
     });
 
     ctx.patch(PotionManager, 'usePotion').after(() => {
