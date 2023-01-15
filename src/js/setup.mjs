@@ -415,8 +415,11 @@ export function setup(ctx) {
 
                 // --------------------------------------- OVERRIDE ---------------------------------------
 
+                let taskTButtonClasses = combatResolver && combatResolver.slayerTaskTierSelected !== null && tier === combatResolver.slayerTaskTierSelected ? 
+                ['combat-resolver-set-slayer-task-target', 'cr-active'] : ['combat-resolver-set-slayer-task-target'];
+
                 const resolverSlayerTaskTargetButton = createElement('div', {
-                    classList: ['combat-resolver-set-slayer-task-target'],
+                    classList: taskTButtonClasses,
                     text: "T"
                 })
         

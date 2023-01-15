@@ -21,12 +21,12 @@ export class CombatResolver {
     afflictionFactor = 20;
     skipRequirements = false;
     showCalculations = false;
-
     integrateSemiAutoSlayer = false;
 
     pendingRecalculation = false;
 
     selectedMonsterTab = 0;
+    slayerTaskTierSelected = null;
     
     headerComponentCreated = false;
     _debug = false;
@@ -599,7 +599,7 @@ export class CombatResolver {
             return;
         }
 
-        const monsters = game.combat.slayerTask.getMonsterSelection(selectedTier);
+        const monsters = this._getMonsterSelection(selectedTier);
 
         if(monsters.length === 0) {
             this._log("WillIDie: Cancelled slayer task target setting - FAILED REQUIREMENTS");
@@ -618,10 +618,14 @@ export class CombatResolver {
 
         const unset = this._handleTButton(e, "SLAYER");
 
-        if(unset)
+        if(unset) {
+            this.slayerTaskTierSelected = null;
             return;
+        }
+        
+        this.slayerTaskTierSelected = selectedTier;
 
-            this.recalculateSurvivability("Target slayer task changed", "SLAYER", monsters);
+        this.recalculateSurvivability("Target slayer task changed", "SLAYER", monsters);
     }
 
     recalculateSurvivability(reason = "", areaOrMonster, target) {
@@ -724,6 +728,23 @@ export class CombatResolver {
         this._updateSurvivabilityState(mostDangerousMonster, area, widMonsters, areaOrMonster);
         this.pendingRecalculation = false;
         this._reRender();
+    }
+
+    _getMonsterSelection(tier) {
+
+        const data = SlayerTask.data[tier];
+
+        return game.monsters.filter((monster)=>{
+            const combatLevel = monster.combatLevel;
+            const monsterArea = game.getMonsterArea(monster);
+            let slayerLevelReq = 0;
+
+            if (monsterArea instanceof SlayerArea)
+                slayerLevelReq = monsterArea.slayerLevelRequired;
+
+            return (monster.canSlayer && combatLevel >= data.minLevel && combatLevel <= data.maxLevel && game.combat.slayerTask.checkRequirements(monsterArea.entryRequirements, false, slayerLevelReq));
+        }
+        );
     }
 
     _getAutoEatThreshold(maxHealthReduction = 1) {
