@@ -719,11 +719,10 @@ export class CombatResolver {
 
         const area = areas.find(a => a.monsters.find(m => m.id === mostDangerousMonster.monsterId));
 
-        if(this._debug) {
-            this._debugValues.monsters = widMonsters;
-            this._debugValues.mostDangerousMonster = mostDangerousMonster;
-            this._debugValues.player.damageReduction = mostDangerousMonster._playerDamageReduction;
-        }
+        
+        this._debugValues.monsters = widMonsters;
+        this._debugValues.mostDangerousMonster = mostDangerousMonster;
+        this._debugValues.player.damageReduction = mostDangerousMonster._playerDamageReduction;
 
         this._updateSurvivabilityState(mostDangerousMonster, area, widMonsters, areaOrMonster);
         this.pendingRecalculation = false;
@@ -839,5 +838,50 @@ export class CombatResolver {
             this.currentSurvivabilityState.uniqueMonsters = uniqueMonsters;
             this.currentSurvivabilityState.widMonsters = widMonsters;
         }
+    }
+
+    getExternalDebugValues() {
+        const pack = {
+            maxHit: this.currentSurvivabilityState?.maxHit,
+            effectiveMaxHit: this.currentSurvivabilityState?.effectiveMaxHit,
+            playerSelfHit: this.currentSurvivabilityState?.playerSelfHit,
+            autoEatThreshold: this.currentSurvivabilityState?.autoEatThreshold,
+            normalAutoEatThreshold: this.currentSurvivabilityState?.normalAutoEatThreshold,
+            canDie: this.currentSurvivabilityState?.canDie,
+            playerIsWorseThanEnemy: this.currentSurvivabilityState?.playerIsWorseThanEnemy,
+            playerCanKillSelf: this.currentSurvivabilityState?.playerCanKillSelf,
+            areaName: this.currentSurvivabilityState?.areaName,
+            uniqueMonsters: this.currentSurvivabilityState?.uniqueMonsters.map(m => m.monsterId),
+            widMonsters: this.currentSurvivabilityState?.widMonsters.map(m => m.monsterId),
+            targetArea: this.targetArea?.id,
+            selectedMonsterTab: this.selectedMonsterTab ?? null,
+            pendingRecalculation: this.pendingRecalculation ?? null,
+            targetType: this.targetType ?? null,
+            afflictionFactor: this.afflictionFactor ?? null,
+            safetyFactor: this.safetyFactor ?? null,
+            skipRequirements: this.skipRequirements ?? null,
+            showCalculations: this.showCalculations ?? null,
+            integrateSemiAutoSlayer: this.integrateSemiAutoSlayer ?? null,
+            slayerTaskTierSelected: this.slayerTaskTierSelected ?? null,
+            survivabilityStateError: this.survivabilityStateError ?? null
+        }
+
+        let out = "";
+
+        for(const [key, value] of Object.entries(pack)) {
+            out += `${key}: ${value}\n`
+        }
+
+        const monsterValues = this._debugValues.mostDangerousMonster?.getValues();
+
+        for(const [key, value] of Object.entries(monsterValues)) {
+            out += `${key}: ${value}\n`
+        }
+
+        for(const [key, value] of Object.entries(this.currentSurvivabilityState?.maxHitReason?.vars)) {
+            out += `${key}: description: ${value.description}, name: ${value.name}, intermediary: ${value.intermediary ?? "-"}, value: ${value.value}\n`
+        }
+
+        return out;
     }
 }

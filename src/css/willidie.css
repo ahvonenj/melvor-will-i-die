@@ -364,3 +364,18 @@
     transform: scale(0.95);
     cursor: pointer;
 }
+
+#willidie-debug-values {
+    width: 100%;
+    height: 500px;
+    background-color: #485363;
+    border: 0;
+    outline: none;
+    -webkit-box-shadow: none;
+    -moz-box-shadow: none;
+    box-shadow: none;
+    resize: none;
+    color: white;
+    overflow: auto;
+    padding: 5px;
+}

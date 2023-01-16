@@ -306,6 +306,45 @@ export class WIDMonster {
         return explain;
     }
 
+    getValues() {
+        return {
+            name: this.name,
+            monsterId: this.monsterId,
+            canNormalAttack: this.canNormalAttack,
+            attackStyle: this.attackStyle,
+            canStun: this.canStun,
+            canSleep: this.canSleep,
+            stunDamageMultiplier: this.stunDamageMultiplier,
+            sleepDamageMultiplier: this.sleepDamageMultiplier,
+            conditionDamageMultiplier: this.conditionDamageMultiplier,
+
+            damageTakenPerAttackEffect: this.damageTakenPerAttackEffect,
+            damageTakenPerAttack: this.damageTakenPerAttack,
+            effectiveDamageTakenPerAttack: this.effectiveDamageTakenPerAttack,
+            monsterPassiveDecreasedPlayerDamageReduction: this.monsterPassiveDecreasedPlayerDamageReduction,
+
+            combatTriangleMultiplier: this.combatTriangleMultiplier,
+
+            specialAttackChanceTotal: this.specialAttackChanceTotal,
+
+            normalAttackMaxHit: this.normalAttackMaxHit,
+            effectiveNormalAttackMaxHit: this.effectiveNormalAttackMaxHit,
+
+            specialAttackMaxHit: this.specialAttackMaxHit,
+            effectiveSpecialAttackMaxHit: this.effectiveSpecialAttackMaxHit,
+            maxHittingSpecialAttack: this.maxHittingSpecialAttack.specialAttackName,
+            effectiveMaxHittingSpecialAttack: this.effectiveMaxHittingSpecialAttack.specialAttackName,
+
+            maxHit: this.maxHit,
+            effectiveMaxHit: this.effectiveMaxHit,
+
+            increasedMaxHitPercentModifier: this.increasedMaxHitPercentModifier,
+            increasedMaxHitFlatModifier: this.increasedMaxHitFlatModifier,
+            decreasedMaxHitpointsModifier: this.decreasedMaxHitpointsModifier,
+            decreasedDamageReductionModifier: this.decreasedDamageReductionModifier
+        };
+    }
+
     _computeStandardDamageReduction() {
         let reduction = this.dummyPlayer.equipmentStats.damageReduction;
         reduction += this.dummyPlayer.modifiers.getFlatDamageReductionModifier();
@@ -356,7 +395,7 @@ export class WIDMonster {
                 character = this._getCharacter('player');;
                 break;
             default:
-                throw new Error(`Invalid damage character type: ${damage.character}`);
+                throw new Error(`Invalid damage character type: damage.character}`);
         }
         return WidMonsterUtil.damageRoll(character, damage.maxRoll, damage.maxPercent);
     }

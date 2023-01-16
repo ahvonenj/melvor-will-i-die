@@ -166,8 +166,31 @@ export function setup(ctx) {
                     ctx.characterStorage.setItem('willidie', willIDieStorage);
                 }
             });
+
+            debugSettings.add({
+                type: 'button',
+                display: "Get Debug Values",
+                color: "primary",
+                name: 'get_debug_values',
+                label: 'Print debug values',
+                hint: '',
+                onClick: () => { 
+                    const debugValues = combatResolver.getExternalDebugValues();
+                    SwalLocale.fire({
+                        title: `Will I Die? Debug Values`,
+                        width: '60em',
+                        html: `<div class="text-left font-size-sm">
+                        <textarea readonly="readonly" id = "willidie-debug-values" onclick="this.focus();this.select()">${debugValues}</textarea>
+                        </div>`
+                    });
+                }
+            });
         
             combatResolver._init(ctx);
+
+            $(document).on('click', `#willidie-debug-values`, function(e) { 
+                
+            });
 
             combatResolver.safetyFactor = safetyFactorDefault;
             combatResolver.afflictionFactor = afflictionFactorDefault;
