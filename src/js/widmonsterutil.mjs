@@ -133,8 +133,8 @@ export class WidMonsterUtil {
 
         const predClamped = pred < 0 ? 0 : pred;
 
-        const reds = Math.round(((1 - (Math.floor(predClamped * combatTriangleMultiplier) / 100)) + Number.EPSILON) * 100) / 100 ;
-        const effective = Math.round(dmgs * reds);
+        const reds = Math.round(((Math.floor(predClamped * combatTriangleMultiplier) / 100) + Number.EPSILON) * 100) / 100 ;
+        const effective = Math.round(dmgs * (1 - reds));
 
         const vars = {
             "cr-eq-var-1":  { description: "Max hit", name: "MH", value: maxHit },
@@ -149,8 +149,8 @@ export class WidMonsterUtil {
             "cr-eq-var-14":  { description: "DR after reduction", name: "DRR", intermediary: 'PDR - DDR - MDDR', value: pred },
             "cr-eq-var-8":  { description: "Clamped DR", name: "DRC", intermediary: 'DRR < 0 ? 0 : DRR', value: predClamped },
             "cr-eq-var-7":  { description: "Total dmg", name: "TDMG", intermediary: '(MH + MFMH) * CD * SF * MPMH', value: dmgs },
-            "cr-eq-var-9":  { description: "Final DR", name: "FDR", intermediary: '1 - (Math.floor(DRR * CBT) / 100)', value: reds },
-            "cr-eq-var-10": { description: "Effective max hit", name: "EFMH", intermediary: 'Math.round(TDMG * FDR)', value: effective }
+            "cr-eq-var-9":  { description: "Final DR", name: "FDR", intermediary: 'Math.floor(DRR * CBT) / 100', value: reds },
+            "cr-eq-var-10": { description: "Effective max hit", name: "EFMH", intermediary: 'Math.round(TDMG * (1 - (FDR))', value: effective }
         }
 
         return [`<div class = "cr-eq-container">` + 
@@ -166,8 +166,8 @@ export class WidMonsterUtil {
         `<span class = "cr-eq-var cr-eq-var-14">DRR</span><span class = "cr-eq-calc"> = </span><span class = "cr-eq-var cr-eq-var-5">PDR</span> - <span class = "cr-eq-var cr-eq-var-4">DDR</span> - <span class = "cr-eq-var cr-eq-var-13">MDDR</span> = </span><span class = "cr-eq-val">${pred}</span><br/>` +
         `<span class = "cr-eq-var cr-eq-var-8">DRC</span><span class = "cr-eq-calc"> = <span class = "cr-eq-var cr-eq-var-14">DRR</span> < 0 ? 0 : <span class = "cr-eq-var cr-eq-var-14">DRR</span> = </span><span class = "cr-eq-val">${predClamped}</span><br/><br/>` +
         `<span class = "cr-eq-var cr-eq-var-7">TDMG</span><span class = "cr-eq-calc"> = (<span class = "cr-eq-var cr-eq-var-1">MH</span> + <span class = "cr-eq-var cr-eq-var-11">MFMH</span>) * <span class = "cr-eq-var cr-eq-var-2">CD</span> * <span class = "cr-eq-var cr-eq-var-3">SF</span> * <span class = "cr-eq-var cr-eq-var-12">MPMH</span> = </span><span class = "cr-eq-val">${dmgs}</span><br/><br/>` +
-        `<span class = "cr-eq-var cr-eq-var-9">FDR</span><span class = "cr-eq-calc"> = (1 - (Math.floor(<span class = "cr-eq-var cr-eq-var-8">DRR</span> * <span class = "cr-eq-var cr-eq-var-6">CBT</span>) / 100)) = </span><span class = "cr-eq-val">${reds}</span><br/><br/>` +
-        `<span class = "cr-eq-var cr-eq-var-10">EFMH</span><span class = "cr-eq-calc"> = Math.round(<span class = "cr-eq-var cr-eq-var-7">TDMG</span> * <span class = "cr-eq-var cr-eq-var-9">FDR</span>) = </span><span class = "cr-eq-val">${effective}</span>` +
+        `<span class = "cr-eq-var cr-eq-var-9">FDR</span><span class = "cr-eq-calc"> = Math.floor(<span class = "cr-eq-var cr-eq-var-8">DRR</span> * <span class = "cr-eq-var cr-eq-var-6">CBT</span>) / 100) = </span><span class = "cr-eq-val">${reds}</span><br/><br/>` +
+        `<span class = "cr-eq-var cr-eq-var-10">EFMH</span><span class = "cr-eq-calc"> = Math.round(<span class = "cr-eq-var cr-eq-var-7">TDMG</span> * (1 - (<span class = "cr-eq-var cr-eq-var-9">FDR</span>)) = </span><span class = "cr-eq-val">${effective}</span>` +
         `</div>`, vars];
     }
 

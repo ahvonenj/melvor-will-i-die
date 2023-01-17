@@ -509,14 +509,23 @@ export function setup(ctx) {
             combatResolver.recalculateSurvivability("Fled combat");
     });
 
+    let potionShouldRecalculate = false;
+
     ctx.patch(PotionManager, 'usePotion').before((item, loadPotions) => {
         const existingPotion = game.potions.activePotions.get(item.action);
 
         if (existingPotion === undefined || existingPotion.item !== item) {
-            combatResolver.recalculateSurvivability("Potion changed");
+            potionShouldRecalculate = true;
+        } else {
+            potionShouldRecalculate = false;
         }
 
         return [item, loadPotions];
+    });
+
+    ctx.patch(PotionManager, 'usePotion').after(() => {
+        if(potionShouldRecalculate)
+            combatResolver.recalculateSurvivability("Potion changed");
     });
 
     ctx.patch(PotionManager, 'removePotion').after(() => {

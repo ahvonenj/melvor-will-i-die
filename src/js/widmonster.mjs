@@ -199,8 +199,8 @@ export class WIDMonster {
         const pred = this._playerDamageReduction - this.monsterPassiveDecreasedPlayerDamageReduction - decreasedDamageReductionModifier < 0 ? 0 
                     : this._playerDamageReduction - this.monsterPassiveDecreasedPlayerDamageReduction - decreasedDamageReductionModifier;
 
-        const reds = 1 - (Math.floor(pred * this.combatTriangleMultiplier) / 100);
-        this.effectiveNormalAttackMaxHit = Math.round(dmgs * reds);
+        const reds = Math.floor(pred * this.combatTriangleMultiplier) / 100;
+        this.effectiveNormalAttackMaxHit = Math.round(dmgs * (1 - reds));
 
         this.specialAttacks = this.specialAttacks.map(specialAttack => {
             const maxHit = this._specialAttackDamage(specialAttack.originalSpecialAttack);
@@ -210,8 +210,8 @@ export class WIDMonster {
             const pred = this._playerDamageReduction - this.monsterPassiveDecreasedPlayerDamageReduction - decreasedDamageReductionModifier < 0 ? 0 
                         : this._playerDamageReduction - this.monsterPassiveDecreasedPlayerDamageReduction - decreasedDamageReductionModifier;
 
-            const reds = 1 - (Math.floor(pred * this.combatTriangleMultiplier) / 100);
-            const effectiveMaxHit = Math.round(dmgs * reds);
+            const reds = Math.floor(pred * this.combatTriangleMultiplier) / 100;
+            const effectiveMaxHit = Math.round(dmgs * (1 - reds));
             
             return {
                 ...specialAttack,
