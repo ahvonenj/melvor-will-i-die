@@ -1,12 +1,14 @@
 import { CombatResolver } from "./CombatResolver.mjs";
 import '../css/willidie.css';
 
+
 export function setup(ctx) {
 
     // Instantiate CombatResolver
     const combatResolver = new CombatResolver();
 
-    const safetySettings = ctx.settings.section('Safety Factor');
+    const safetySettings = ctx.settings.section('Safety');
+    const uiSettings = ctx.settings.section('UI');
     const integrationSettings = ctx.settings.section('Mod integration');
     const requirementSettings = ctx.settings.section('Requirements');
     const calculationDisplaySettings = ctx.settings.section('Calculation display');
@@ -20,6 +22,9 @@ export function setup(ctx) {
                     afflictionfactor: 20,
                     integrate_semi_autoslayer: false,
                     requirements: false,
+                    ui_safety_in_stats: false,
+                    ui_sticky_safety_panel: false,
+                    ui_t_in_slayer_task: false,
                     calculations: false,
                     debug: false
                 }
@@ -37,6 +42,11 @@ export function setup(ctx) {
             }
 
             const requirementsDefault = willIDieStorage.settings.requirements;
+
+            const safetyInStatsDefault = willIDieStorage.settings.ui_safety_in_stats;
+            const stickySafetyPanelDefault = willIDieStorage.settings.ui_sticky_safety_panel;
+            const slayerTaskTButtonDefault = willIDieStorage.settings.ui_t_in_slayer_task;
+
             const calculationsDefault = willIDieStorage.settings.calculations;
             const debugDefault = willIDieStorage.settings.debug;
 
@@ -68,6 +78,83 @@ export function setup(ctx) {
                     combatResolver.afflictionFactor = newValue; 
                     combatResolver.recalculateSurvivability("Settings changed"); 
                     willIDieStorage.settings.afflictionfactor = newValue;
+                    ctx.characterStorage.setItem('willidie', willIDieStorage);
+                }
+            });
+
+            uiSettings.add({
+                type: 'switch',
+                name: 'indicator_combat',
+                label: 'Display safety indicator in combat stats panel',
+                hint: 'When enabled, the safety indicator will be also displayed in the combat stats panel',
+                default: safetyInStatsDefault,
+                onChange: (newValue) => { 
+                    if(newValue === true) {
+                        combatResolver.renderer._createStatsPanelSafetyIndicator();
+                    } else {
+                        const removed = combatResolver.renderer._removeStatsPanelSafetyIndicator();
+
+                        if(!removed) {
+                            Toastify({
+                                text: `Will I Die?: Could not remove the indicator from combat stats panel. Please report this to the developer.`,
+                                duration: 1500,
+                                gravity: 'top',
+                                position: 'center',
+                                backgroundColor: '#e56767',
+                                stopOnFocus: false
+                            }).showToast();
+
+                            return false;
+                        }
+                    }
+
+                    combatResolver.safetyInStats = newValue; 
+                    willIDieStorage.settings.ui_safety_in_stats = newValue;
+                    ctx.characterStorage.setItem('willidie', willIDieStorage);
+                }
+            });
+
+            uiSettings.add({
+                type: 'switch',
+                name: 'sticky_panel',
+                label: 'Sticky safety panel',
+                hint: 'Makes the safety panel (opened by pressing the SAFE/DANGER button) sticky, so it stays on screen even when you scroll down',
+                default: stickySafetyPanelDefault,
+                onChange: (newValue) => { 
+                    combatResolver.stickySafetyPanel = newValue; 
+                    willIDieStorage.settings.ui_sticky_safety_panel = newValue;
+                    ctx.characterStorage.setItem('willidie', willIDieStorage);
+                }
+            });
+
+            uiSettings.add({
+                type: 'switch',
+                name: 'slayer_task_t_button',
+                label: 'Slayer task T-button',
+                hint: 'Adds an additional T-button into the slayer task panel, allowing to target the current slayer task',
+                default: slayerTaskTButtonDefault,
+                onChange: (newValue) => { 
+                    if(newValue === true) {
+                        combatResolver.renderer._createTaskPanelTButton();
+                    } else {
+                        const removed = combatResolver.renderer._removeTaskPanelTButton();
+
+                        if(!removed) {
+                            Toastify({
+                                text: `Will I Die?: Could not remove the T-button from the slayer task panel. Please report this to the developer.`,
+                                duration: 1500,
+                                gravity: 'top',
+                                position: 'center',
+                                backgroundColor: '#e56767',
+                                stopOnFocus: false
+                            }).showToast();
+
+                            return false;
+                        }
+                    }
+
+                    combatResolver.slayerTaskTButton = newValue; 
+                    willIDieStorage.settings.ui_t_in_slayer_task = newValue;
                     ctx.characterStorage.setItem('willidie', willIDieStorage);
                 }
             });
@@ -188,10 +275,6 @@ export function setup(ctx) {
         
             combatResolver._init(ctx);
 
-            $(document).on('click', `#willidie-debug-values`, function(e) { 
-                
-            });
-
             combatResolver.safetyFactor = safetyFactorDefault;
             combatResolver.afflictionFactor = afflictionFactorDefault;
             combatResolver.integrateSemiAutoSlayer = integrateSemiAutoSlayerDefault;
@@ -203,10 +286,25 @@ export function setup(ctx) {
             }
 
             combatResolver.skipRequirements = requirementsDefault;
+
+            combatResolver.safetyInStats = safetyInStatsDefault;
+            combatResolver.stickySafetyPanel = stickySafetyPanelDefault;
+            combatResolver.slayerTaskTButton = slayerTaskTButtonDefault;
+
             combatResolver.showCalculations = calculationsDefault;
             combatResolver._debug = debugDefault;
 
             combatResolver.recalculateSurvivability("Settings loaded");
+
+            ctx.onInterfaceReady(ctx => {
+                if(combatResolver && combatResolver.renderer && combatResolver.slayerTaskTButton) {
+                    combatResolver.renderer._createTaskPanelTButton();
+                }
+
+                if(combatResolver && combatResolver.renderer && combatResolver.safetyInStats) {
+                    combatResolver.renderer._createStatsPanelSafetyIndicator();
+                }
+            });
         });
     });
 
@@ -478,9 +576,7 @@ export function setup(ctx) {
                 button.disabled = true;
             }
         });
-    });
-
-    
+    }); 
 
     // Patch some Player methods so we can trigger recalculation of survivability
     // This is so that we can call recalculateSurvivability() when player's stats change
@@ -497,11 +593,20 @@ export function setup(ctx) {
         combatResolver.recalculateSurvivability("Equipment set change");
     });
 
+    let prayerShouldRecalculate = false;
+
     ctx.patch(Player, "togglePrayer").before((prayer, render) => {
         if(["melvorF:Safeguard", "melvorF:Stone_Skin", "melvorTotH:HolyAegis"].includes(prayer.id)) {
-            combatResolver.recalculateSurvivability("Prayer change");
+            prayerShouldRecalculate = true;
+        } else {
+            prayerShouldRecalculate = false;
         }
         return [prayer, render];
+    });
+
+    ctx.patch(Player, "togglePrayer").after(() => {
+        if(prayerShouldRecalculate)
+            combatResolver.recalculateSurvivability("Prayer change");
     });
 
     ctx.patch(BaseManager, 'stop').after(() => {
@@ -532,17 +637,21 @@ export function setup(ctx) {
         combatResolver.recalculateSurvivability("Potion removed");
     });
 
+    ctx.patch(Agility, 'onObstacleChange').after(() => {
+        combatResolver.recalculateSurvivability("Agility obstacle changed");
+    });
+
     // Hook to onInterfaceReady
     // We use this event to create our header component for this mod
     ctx.onInterfaceReady(() => {
-        combatResolver._createHeaderComponent();
+        combatResolver.renderer._createHeaderComponent();
 
         $('body').on('click', '#will-i-die-header-tab-dropdown', function(e) {
             e.stopPropagation();
         });
 
         $('body').on('click', function(e) {
-            combatResolver._fastResetTabContents();
+            combatResolver.renderer._fastResetTabContents();
         });
     })
 }

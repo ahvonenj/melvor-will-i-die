@@ -59,6 +59,30 @@
     background-color: #29a877;
 }
 
+#combat-resolver-set-monster-target-from-task {
+    width: 25px;
+    height: 25px;
+    background-color: #3261cf;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 16%), 0 1px 3px rgb(0 0 0 / 23%);
+    text-align: center;
+    line-height: 25px;
+    font-weight: bold;
+    border-radius: 2px;
+
+    position: static;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 10px;
+}
+
+#combat-resolver-set-monster-target-from-task:hover {
+    background-color: #29a877;
+    cursor: pointer;
+}
+
+#combat-resolver-set-monster-target-from-task.cr-active {
+    background-color: #29a877;
+}
 
 .wid-safety-factor {
     color: #30c78d;
@@ -98,6 +122,14 @@
     color: #f1c40f !important;
     box-shadow: 0 0 0 0 rgba(241, 196, 15, 1);
     animation: wid-recalc-pulse 2s infinite;
+    transform-origin: 50% 50%;
+}
+
+.combat-resolver-recalc-text {
+    color: #f1c40f !important;
+    box-shadow: 0 0 0 rgba(241, 196, 15, 1);
+    animation: wid-recalc-pulse-text 2s infinite;
+    transform-origin: 50% 50%;
 }
 
 #will-i-die-header-tab-dropdown > .dropdown-header {
@@ -222,6 +254,23 @@
     100% {
         transform: scale(0.95);
         box-shadow: 0 0 0 0 rgba(241, 196, 15, 0);
+    }
+}
+
+@keyframes wid-recalc-pulse-text {
+    0% {
+        transform: scale(0.95);
+        text-shadow: 0 0 0 rgba(241, 196, 15, 0.7);
+    }
+
+    70% {
+        transform: scale(1);
+        text-shadow: 0 0 20px rgba(241, 196, 15, 0);
+    }
+
+    100% {
+        transform: scale(0.95);
+        text-shadow: 0 0 0 rgba(241, 196, 15, 0);
     }
 }
 
