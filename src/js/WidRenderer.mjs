@@ -1,6 +1,10 @@
 export class WidRenderer {
     combatResolver = null;
     
+    headerDropdown = null;
+    headerDropdownEventCatcher = null;
+    headerDropdownTimeout = null;
+
     tabComponent = null; 
     tabButton = null;
     tabContent = null;
@@ -16,6 +20,7 @@ export class WidRenderer {
 
     statsPanelSafetyIndicatorTextCol = null;
     statsPanelSafetyIndicatorValueCol = null;
+    statsPanelSafetyIndicatorValueColTippy = null;
     safetyIndicatorText = null;
     statsPanelSafetyIndicator = null;
 
@@ -70,7 +75,12 @@ export class WidRenderer {
             attributes: [['data-toggle', 'dropdown']]
         });
 
-        tabButton.onclick = () => {
+        tabButton.onclick = (e) => {
+            if(this.combatResolver && this.combatResolver.stickySafetyPanel) {
+                e.stopPropagation();
+                return;
+            }
+  
             this._tabOpen = true;
         }
 
@@ -79,9 +89,13 @@ export class WidRenderer {
         this.tabComponent.appendChild(this.tabButton);
 
         // Dropdown for when the tab is clicked
-        const dropdown = createElement('div', {
+        this.headerDropdown = createElement('div', {
             id: "will-i-die-header-tab-dropdown",
             classList: ["dropdown-menu", "dropdown-menu-lg", "dropdown-menu-right", "p-0", "border-0", "font-size-sm"]
+        });
+
+        this.headerDropdownEventCatcher = createElement('div', {
+            id: "will-i-die-header-tab-dropdown-event-catcher"
         });
 
         const header = createElement('div', {
@@ -129,7 +143,7 @@ export class WidRenderer {
         header.appendChild(header_left);
         header.appendChild(header_right);
 
-        dropdown.appendChild(createElement('div', {
+        this.headerDropdown.appendChild(createElement('div', {
             classList: ["p-2", "text-center"]
         }).appendChild(header));
 
@@ -169,10 +183,10 @@ export class WidRenderer {
                 this.equationPopup.classList.add('wid-eq-popup-invisible');
             }
         }
-
-        dropdown.appendChild(this.monsterTabContainer);
-        dropdown.appendChild(this.tabContent);
-        this.tabComponent.appendChild(dropdown);
+        //this.headerDropdown.appendChild(this.headerDropdownEventCatcher);
+        this.headerDropdown.appendChild(this.monsterTabContainer);
+        this.headerDropdown.appendChild(this.tabContent);
+        this.tabComponent.appendChild(this.headerDropdown);
         targetTab.after(this.tabComponent);
 
         this.headerComponentCreated = true;
@@ -252,6 +266,18 @@ export class WidRenderer {
             this.statsPanelSafetyIndicatorTextCol.appendChild(this.statsPanelSafetyIndicatorText);
             this.statsPanelSafetyIndicatorValueCol.appendChild(this.statsPanelSafetyIndicatorValue);
 
+            this.statsPanelSafetyIndicatorValueColTippy = tippy(this.statsPanelSafetyIndicatorValueCol, {
+                content: "",
+                allowHTML: true,
+                placement: 'right',
+                interactive: false,
+                animation: false,
+                onShow(instance) {
+                    if(instance.popper.textContent.length === 0)
+                        return false;
+                }
+            });
+
             target.appendChild(this.statsPanelSafetyIndicatorTextCol);
             target.appendChild(this.statsPanelSafetyIndicatorValueCol);
 
@@ -263,6 +289,12 @@ export class WidRenderer {
         if(this.statsPanelSafetyIndicatorTextCol && this.statsPanelSafetyIndicatorValueCol) {
             this.statsPanelSafetyIndicatorTextCol.remove();
             this.statsPanelSafetyIndicatorValueCol.remove();
+
+            if(this.statsPanelSafetyIndicatorValueColTippy) {
+                this.statsPanelSafetyIndicatorValueColTippy.destroy();
+                this.statsPanelSafetyIndicatorValueColTippy = null;
+            }
+
             return true;
         }
 
@@ -350,7 +382,7 @@ export class WidRenderer {
         this.monsterTabContainer.replaceChildren(...buttons);
     }
 
-    _reRenderIndicators() {
+    _reRenderIndicators(survivabilityStateOk = false) {
         const self = this;
         const survivabilityState = this.combatResolver.currentSurvivabilityState;
         const survivabilityStateError = this.combatResolver.survivabilityStateError;
@@ -403,6 +435,11 @@ export class WidRenderer {
             removeIndicatorClasses();
             indicators.forEach(obj => obj.indicator.classList.add(obj.recalcClass));
         }
+
+        if(survivabilityStateOk) {
+            const { effectiveMaxHit } = this.combatResolver.currentSurvivabilityState;
+            this.statsPanelSafetyIndicatorValueColTippy.setContent(`Max hit: ${effectiveMaxHit}`);
+        }
     }
 
     // Rerenders all the DOM elements related to this mod with new values
@@ -411,7 +448,10 @@ export class WidRenderer {
 
         this.combatResolver._log(`WillIDie: Rerendering`);
 
-        this._reRenderIndicators();
+        this._reRenderIndicators(
+            this.combatResolver.survivabilityStateError === 0 &&
+            this.combatResolver.currentSurvivabilityState
+        );
 
         if(this.combatResolver.survivabilityStateError === 1) {
             this.tabContent.innerHTML = `WillIDie is currently unable to calculate your survivability.<br/><br/>
@@ -449,7 +489,7 @@ export class WidRenderer {
             normalAutoEatThreshold,
             widMonsters
         } = this.combatResolver.currentSurvivabilityState;
-
+        
         const numberOrderStrings = ['', 'second ', 'third ', 'fourth ', 'fifth ', 'sixth ', 'seventh ', 'eighth ', 'ninth ', 'tenth '];
 
         const afflictionMessage = maxHitReason.affliction.canAfflict ? `WARNING - 
@@ -567,5 +607,40 @@ export class WidRenderer {
 
         this.selectedMonsterTab = index;
         this._reRender();
+    }
+
+    _enableStickySafetyPanel() {
+        const self = this;
+
+        this.headerDropdown.style.cssText = `
+            position: fixed !important;
+            display: block !important;
+            border: solid 1px #fff!important;
+            right: 10px !important;
+            top: 50px !important;
+            left: unset !important;
+            transform: none !important;
+            max-width: 300px;
+            opacity: 0.9;
+            transition: opacity 0.1s;
+        `;
+         
+        /*this.headerDropdown.onmouseenter = () => {
+            clearTimeout(self.headerDropdownTimeout);
+            self.headerDropdown.style.opacity = 0;
+            self.headerDropdownTimeout = setTimeout(() => {
+                self.headerDropdown.style.display = "none";
+            }, 100);
+        }
+
+        this.headerDropdown.onmouseleave = () => {
+            clearTimeout(self.headerDropdownTimeout);
+            this.headerDropdown.style.display = "block";
+            this.headerDropdown.style.opacity = 0.9;
+        }*/
+    }
+
+    _disableStickySafetyPanel() {
+        this.headerDropdown.style.cssText = "";
     }
 }

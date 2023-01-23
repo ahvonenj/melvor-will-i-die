@@ -121,6 +121,11 @@ export function setup(ctx) {
                 hint: 'Makes the safety panel (opened by pressing the SAFE/DANGER button) sticky, so it stays on screen even when you scroll down',
                 default: stickySafetyPanelDefault,
                 onChange: (newValue) => { 
+                    if(newValue === true) {
+                        combatResolver.renderer._enableStickySafetyPanel();
+                    } else {
+                        combatResolver.renderer._disableStickySafetyPanel();
+                    }
                     combatResolver.stickySafetyPanel = newValue; 
                     willIDieStorage.settings.ui_sticky_safety_panel = newValue;
                     ctx.characterStorage.setItem('willidie', willIDieStorage);
@@ -303,6 +308,10 @@ export function setup(ctx) {
 
                 if(combatResolver && combatResolver.renderer && combatResolver.safetyInStats) {
                     combatResolver.renderer._createStatsPanelSafetyIndicator();
+                }
+
+                if(combatResolver && combatResolver.renderer && combatResolver.stickySafetyPanel) {
+                    combatResolver.renderer._enableStickySafetyPanel();
                 }
             });
         });
