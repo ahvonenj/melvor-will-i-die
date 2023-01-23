@@ -365,7 +365,7 @@ export class WidRenderer {
                 indicator: this.statsPanelSafetyIndicatorValue, 
                 recalcClass: 'combat-resolver-recalc-text'
             }
-        ].filter(indicator => (indicator !== undefined && indicator !== null));
+        ].filter(indicator => (indicator.indicator !== undefined && indicator.indicator !== null));
 
         const classes = ['combat-resolver-safe', 'combat-resolver-danger', 'combat-resolver-unknown', 'combat-resolver-recalc', 'combat-resolver-recalc-text'];
 

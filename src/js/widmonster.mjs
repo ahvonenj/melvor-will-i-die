@@ -64,22 +64,25 @@ export class WIDMonster {
         this.dummyEnemy = new Enemy(this.gameClone.combat, this.gameClone);
         this.dummyPlayer = $.extend(true, {}, this.gameClone).combat.player;
 
-        this._playerAttackStyle = this.dummyPlayer.attackType;
-    
-        /*
-            Set monster for the Enemy object via id lookup from game.monsters
-            Example id: "melvorF:Umbora"
-            Game data stuff can be found:
-            https://melvoridle.com/assets/schema/gameData.json
-            https://melvoridle.com/assets/data/melvorFull.json
-            https://melvoridle.com/assets/data/melvorTotH.json
-        */
         this.dummyMonster = this.gameClone.monsters.find(m => m.id === this.monsterId);
         this.media = this.dummyMonster.media;
 
         this.dummyEnemy.setMonster(this.dummyMonster);
         this.dummyEnemy.target = this.dummyPlayer;
+
+        this.dummyEnemy = new Enemy(this.gameClone.combat, this.gameClone);
+        this.dummyPlayer = $.extend(true, {}, this.gameClone).combat.player;
+
+        this.dummyMonster = this.gameClone.monsters.find(m => m.id === this.monsterId);
+        this.media = this.dummyMonster.media;
+
+        this.dummyEnemy.setMonster(this.dummyMonster);
+        this.dummyEnemy.target = this.dummyPlayer;
+
+
         this.dummyEnemy.computeMaxHit();
+
+        this._playerAttackStyle = this.dummyPlayer.attackType;
 
         this._playerDamageReduction = this._computeStandardDamageReduction();
 
@@ -151,6 +154,16 @@ export class WIDMonster {
                 this.sleepDamageMultiplier = 1.2;
             }
 
+            // When you are sleeping, monsters hit for 20% more
+            // We're calculating the worst-case-scenario, so if a monster can sleep with any attack,
+            // we assume that the 20% always applies
+            if(specialAttack.attack.onhitEffects.some((e) => e.curse !== undefined && e.curse.id === "melvorTotH:Despair") ||
+            specialAttack.attack.prehitEffects.some((e) => e.curse !== undefined && e.curse.id === "melvorTotH:Torment")) {
+                canSleep = true;
+                this.canSleep = true;
+                this.sleepDamageMultiplier = 1.2;
+            }
+
             this.specialAttacks.push({
                 specialAttackName: specialAttack.attack.name,
                 canStun,
@@ -192,7 +205,7 @@ export class WIDMonster {
         this.decreasedDamageReductionModifier = decreasedDamageReductionModifier;
 
 
-        this.normalAttackMaxHit = this._calculateStandardMaxHit()
+        this.normalAttackMaxHit = this._calculateStandardMaxHit(this.dummyEnemy)
 
         const dmgs = (this.normalAttackMaxHit + increasedMaxHitFlatModifier) * this.conditionDamageMultiplier * this.safetyFactor * increasedMaxHitPercentModifier;
 
@@ -200,7 +213,7 @@ export class WIDMonster {
                     : this._playerDamageReduction - this.monsterPassiveDecreasedPlayerDamageReduction - decreasedDamageReductionModifier;
 
         const reds = Math.floor(pred * this.combatTriangleMultiplier) / 100;
-        this.effectiveNormalAttackMaxHit = Math.round(dmgs * (1 - reds));
+        this.effectiveNormalAttackMaxHit = Math.floor(dmgs * (1 - reds));
 
         this.specialAttacks = this.specialAttacks.map(specialAttack => {
             const maxHit = this._specialAttackDamage(specialAttack.originalSpecialAttack);
@@ -211,7 +224,7 @@ export class WIDMonster {
                         : this._playerDamageReduction - this.monsterPassiveDecreasedPlayerDamageReduction - decreasedDamageReductionModifier;
 
             const reds = Math.floor(pred * this.combatTriangleMultiplier) / 100;
-            const effectiveMaxHit = Math.round(dmgs * (1 - reds));
+            const effectiveMaxHit = Math.floor(dmgs * (1 - reds));
             
             return {
                 ...specialAttack,
@@ -392,7 +405,7 @@ export class WIDMonster {
                 break;
             // Player
             case 'Target':
-                character = this._getCharacter('player');;
+                character = this._getCharacter('player');
                 break;
             default:
                 throw new Error(`Invalid damage character type: damage.character}`);
@@ -412,7 +425,7 @@ export class WIDMonster {
         } else if(monsterOrPlayer === 'player') {
             return {
                 maxHitpoints: this.dummyPlayer.stats.maxHitpoints,
-                maxHit: this.dummyPlayer.stats.maxHit,
+                maxHit: this._modifyMaxHit(this.dummyPlayer, this._calculateStandardMaxHit(this.dummyPlayer)),
                 levels: this.dummyPlayer.levels,
                 damageReduction: this._playerDamageReduction,
                 hitpointsPercent: 100,
@@ -427,34 +440,102 @@ export class WIDMonster {
         return reductions[this._playerAttackStyle][this.attackStyle];
     }
 
-    _calculateStandardMaxHit() {
-        let maxHit;
-        let effectiveLevel;
-        let equipmentbonus;
+    _calculateStandardMaxHit(character) {
+        const maxHit = character instanceof Player ? this._calculateStandardMaxHitPlayer(this._playerAttackStyle) : this._calculateStandardMaxHitMonster(this.attackStyle);
+        return maxHit;
+    }
 
-        switch (this.attackStyle) 
+    _calculateStandardMaxHitPlayer(style) {
+        const player = this.dummyPlayer;
+        let strengthBonus = 0;
+        let twoHandModifier = 1;
+        let modifier = null;
+        let effectiveLevel = 0;
+
+        switch (style) 
         {
             case 'magic':
                 let _a;
-                if (this.dummyEnemy.spellSelection.ancient !== undefined) {
-                    return numberMultiplier * this.dummyEnemy.spellSelection.ancient.specialAttack.damage[0].maxPercent;
+                if (player.spellSelection.ancient !== undefined) {
+                    return numberMultiplier * player.spellSelection.ancient.specialAttack.damage[0].maxPercent;
                 }
-                const spell = (_a = this.dummyEnemy.spellSelection.standard) !== null && _a !== void 0 ? _a : this.dummyEnemy.spellSelection.archaic;
+                const spell = (_a = player.spellSelection.standard) !== null && _a !== void 0 ? _a : player.spellSelection.archaic;
                 if (spell !== undefined) {
-                    maxHit = Math.floor(numberMultiplier * spell.maxHit * (1 + this.dummyEnemy.equipmentStats.magicDamageBonus / 100) * (1 + (this.dummyMonster.levels.Magic + 1) / 200));
+                    let damageBonus = player.equipmentStats.magicDamageBonus;
+                    damageBonus = this._applyModifier(damageBonus, player.modifiers.magicDamageModifier);
+                    return Math.floor(numberMultiplier * spell.maxHit * (1 + damageBonus / 100) * (1 + (player.levels.Magic + 1) / 200));
+                } else {
+                    return 0;
+                }
+            case 'ranged':
+                strengthBonus = player.equipmentStats.rangedStrengthBonus + player.modifiers.increasedFlatRangedStrengthBonus;
+                twoHandModifier = 1;
+
+                if (player.equipment.isWeapon2H)
+                    twoHandModifier = 2;
+
+                strengthBonus += (player.modifiers.increasedFlatMeleeStrengthBonusPerAttackInterval - player.modifiers.decreasedFlatMeleeStrengthBonusPerAttackInterval) * Math.floor(player.stats.attackInterval / 100) * twoHandModifier;
+                modifier = player.modifiers.rangedStrengthBonusModifier;
+
+                const weaponID = player.equipment.slots.Weapon.item.id;
+
+                if ((this.dummyMonster.canSlayer /*|| player.manager.areaType === CombatAreaType.Slayer*/) && weaponID === "melvorF:Slayer_Crossbow")
+                    modifier += 33;
+                if (weaponID === "melvorF:Stormsnap") {
+                    strengthBonus += Math.floor(129 + (1 + (this.dummyEnemy.levels.Magic * 6) / 33));
+                }
+
+                strengthBonus = this._applyModifier(strengthBonus, modifier);
+                effectiveLevel = player.levels.Ranged + 9;
+
+                return Math.floor(numberMultiplier * (1.3 + effectiveLevel / 10 + strengthBonus / 80 + (effectiveLevel * strengthBonus) / 640));
+            case 'melee':
+                strengthBonus = player.equipmentStats.meleeStrengthBonus + player.modifiers.increasedFlatMeleeStrengthBonus;
+                twoHandModifier = 1;
+
+                if (player.equipment.isWeapon2H)
+                    twoHandModifier = 2;
+
+                strengthBonus += (player.modifiers.increasedFlatMeleeStrengthBonusPerAttackInterval - player.modifiers.decreasedFlatMeleeStrengthBonusPerAttackInterval) * Math.floor(player.stats.attackInterval / 100) * twoHandModifier;
+                modifier = player.modifiers.meleeStrengthBonusModifier;
+                strengthBonus = this._applyModifier(strengthBonus, modifier);
+                effectiveLevel = player.levels.Strength + 9;
+
+                return Math.floor(numberMultiplier * (1.3 + effectiveLevel / 10 + strengthBonus / 80 + (effectiveLevel * strengthBonus) / 640));
+            default:
+                throw new Error();
+        }
+    }
+
+    _calculateStandardMaxHitMonster(style) {
+        const monster = this.dummyEnemy;
+        let effectiveLevel;
+        let equipmentbonus;
+        let maxHit = 0;
+
+        switch (style) 
+        {
+            case 'magic':
+                let _a;
+                if (monster.spellSelection.ancient !== undefined) {
+                    return numberMultiplier * monster.spellSelection.ancient.specialAttack.damage[0].maxPercent;
+                }
+                const spell = (_a = monster.spellSelection.standard) !== null && _a !== void 0 ? _a : monster.spellSelection.archaic;
+                if (spell !== undefined) {
+                    maxHit = Math.floor(numberMultiplier * spell.maxHit * (1 + monster.equipmentStats.magicDamageBonus / 100) * (1 + (monster.levels.Magic + 1) / 200));
                 }
                 else {
                     maxHit = 0;
                 }
                 break;
             case 'ranged':
-                effectiveLevel = this.dummyMonster.levels.Ranged + 9;
-                equipmentbonus = this.dummyEnemy.equipmentStats.rangedStrengthBonus;
+                effectiveLevel = monster.levels.Ranged + 9;
+                equipmentbonus = monster.equipmentStats.rangedStrengthBonus;
                 maxHit = Math.floor(numberMultiplier * (1.3 + effectiveLevel / 10 + equipmentbonus / 80 + (effectiveLevel * equipmentbonus) / 640));
                 break;
             case 'melee':
-                effectiveLevel = this.dummyMonster.levels.Strength + 9;
-                equipmentbonus = this.dummyEnemy.equipmentStats.meleeStrengthBonus;
+                effectiveLevel = monster.levels.Strength + 9;
+                equipmentbonus = monster.equipmentStats.meleeStrengthBonus;
                 maxHit = Math.floor(numberMultiplier * (1.3 + effectiveLevel / 10 + equipmentbonus / 80 + (effectiveLevel * equipmentbonus) / 640));
                 break;
             default:
@@ -462,5 +543,136 @@ export class WIDMonster {
         }
 
         return maxHit;
+    }
+
+    _modifyMaxHit(character, maxHit) {
+        const style = character instanceof Player ? this._playerAttackStyle : this.attackStyle;
+
+        if (character.usingAncient) {
+            return maxHit;
+        }
+        let maxHitModifier = this._getMaxHitModifier(character, style);
+        if (style === 'magic' && character.spellSelection.standard !== undefined && character.spellSelection.standard.spellTier === SpellTiers.Surge) {
+            maxHitModifier += character.modifiers.increasedSurgeSpellMaxHit;
+        }
+        switch (style) {
+        case 'melee':
+            maxHitModifier += (character.modifiers.increasedMeleeMaxHitBonusAgainstRanged - character.modifiers.decreasedMeleeMaxHitBonusAgainstRanged) * this._getMaxHitMultiplierBasedOnEnemyAttackType(character);
+            break;
+        case 'ranged':
+            maxHitModifier += (character.modifiers.increasedRangedMaxHitBonusAgainstMagic - character.modifiers.decreasedRangedMaxHitBonusAgainstMagic) * this._getMaxHitMultiplierBasedOnEnemyAttackType(character);
+            break;
+        case 'magic':
+            maxHitModifier += (character.modifiers.increasedMagicMaxHitBonusAgainstMelee - character.modifiers.decreasedMagicMaxHitBonusAgainstMelee) * this._getMaxHitMultiplierBasedOnEnemyAttackType(character);
+            break;
+        }
+        if (true || character.manager.fightInProgress) {
+            maxHitModifier += (character.modifiers.increasedMaxHitPercentBasedOnEnemyDamageReduction - character.modifiers.decreasedMaxHitPercentBasedOnEnemyDamageReduction) * character.manager.enemy.stats.damageReduction;
+            maxHitModifier += (character.modifiers.increasedMaxHitPercentBasedOnDamageReduction - character.modifiers.decreasedMaxHitPercentBasedOnDamageReduction) * character.stats.damageReduction;
+        }
+        maxHit = this._applyModifier(maxHit, maxHitModifier);
+        maxHit += numberMultiplier * this._getMaxHitFlatModifier(character, style);
+        if (style === 'magic' && character.spellSelection.standard !== undefined) {
+            maxHit += numberMultiplier * this._getSpellMaxHitModifier(character, character.spellSelection.standard.spellType);
+        }
+
+        maxHit = Math.max(maxHit, 1);
+        return maxHit;
+    }
+
+    _getMaxHitModifier(character, style) {
+        let totalBonus = character.modifiers.increasedMaxHitPercent - character.modifiers.decreasedMaxHitPercent;
+        switch (style) {
+        case 'melee':
+            totalBonus += character.modifiers.increasedMeleeMaxHit;
+            totalBonus -= character.modifiers.decreasedMeleeMaxHit;
+            break;
+        case 'ranged':
+            totalBonus += character.modifiers.increasedRangedMaxHit;
+            totalBonus -= character.modifiers.decreasedRangedMaxHit;
+            break;
+        case 'magic':
+            totalBonus += character.modifiers.increasedMagicMaxHit;
+            totalBonus -= character.modifiers.decreasedMagicMaxHit;
+            break;
+        default:
+            throw new Error(`Invalid attack type: ${type} while modifying max hit.`);
+        }
+        return totalBonus;
+    }
+
+    _getMaxHitFlatModifier(character, style) {
+        let totalBonus = character.modifiers.increasedMaxHitFlat - character.modifiers.decreasedMaxHitFlat;
+        switch (style) {
+        case 'melee':
+            totalBonus += character.modifiers.increasedMeleeMaxHitFlat;
+            totalBonus -= character.modifiers.decreasedMeleeMaxHitFlat;
+            break;
+        case 'ranged':
+            totalBonus += character.modifiers.increasedRangedMaxHitFlat;
+            totalBonus -= character.modifiers.decreasedRangedMaxHitFlat;
+            break;
+        case 'magic':
+            totalBonus += character.modifiers.increasedMagicMaxHitFlat;
+            totalBonus -= character.modifiers.decreasedMagicMaxHitFlat;
+            break;
+        default:
+            throw new Error(`Invalid attack type: ${type} while calculating flat max hit modifier.`);
+        }
+        return totalBonus;
+    }
+
+    _getSpellMaxHitModifier(character, spellType) {
+        switch (spellType) {
+        case SpellTypes.Air:
+            return character.modifiers.increasedMaxAirSpellDmg - character.modifiers.decreasedMaxAirSpellDmg;
+        case SpellTypes.Water:
+            return character.modifiers.increasedMaxWaterSpellDmg - character.modifiers.decreasedMaxWaterSpellDmg;
+        case SpellTypes.Earth:
+            return character.modifiers.increasedMaxEarthSpellDmg - character.modifiers.decreasedMaxEarthSpellDmg;
+        case SpellTypes.Fire:
+            return character.modifiers.increasedMaxFireSpellDmg - character.modifiers.decreasedMaxFireSpellDmg;
+        case SpellTypes.Nature:
+            return 0;
+        default:
+            throw new Error(`Invalid Spelltype: ${spellType}`);
+        }
+    }
+
+    _getMaxHitMultiplierBasedOnEnemyAttackType(character) {
+        let multiplier = 1;
+        if (true || character.manager.fightInProgress) {
+            const enemyAttackType = character.manager.enemy.attackType;
+            switch (enemyAttackType) {
+            case 'melee':
+                if (this.attackStyle === 'magic')
+                    multiplier = 3;
+                break;
+            case 'ranged':
+                if (this.attackStyle === 'melee')
+                    multiplier = 3;
+                break;
+            case 'magic':
+                if (this.attackStyle === 'ranged')
+                    multiplier = 3;
+                break;
+            }
+        }
+        return multiplier;
+    }
+
+    _applyModifier(baseStat, modifier, type=0) {
+        switch (type) {
+        case 0:
+            return Math.floor(baseStat * (1 + modifier / 100));
+        case 1:
+            return baseStat + modifier;
+        case 2:
+            return Math.floor(baseStat * (1 - modifier / 100));
+        case 3:
+            return Math.floor(baseStat * (modifier / 100));
+        default:
+            return baseStat;
+        }
     }
 }

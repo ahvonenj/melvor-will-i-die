@@ -127,14 +127,14 @@ export class WidMonsterUtil {
             decreasedDamageReductionModifier
         } = WidMonsterUtil.getMonsterSpecificBullshit(monsterId, afflictionFactor);
 
-        const dmgs = Math.round((((maxHit + increasedMaxHitFlatModifier) * totalDamageMultiplier * safetyFactor * increasedMaxHitPercentModifier) + Number.EPSILON) * 100) / 100;
+        const dmgs = ((((maxHit + increasedMaxHitFlatModifier) * totalDamageMultiplier * safetyFactor * increasedMaxHitPercentModifier) + Number.EPSILON) * 100) / 100;
         
         const pred = playerDamageReduction - monsterPassiveDecreasedPlayerDamageReduction - decreasedDamageReductionModifier;
 
         const predClamped = pred < 0 ? 0 : pred;
 
-        const reds = Math.round(((Math.floor(predClamped * combatTriangleMultiplier) / 100) + Number.EPSILON) * 100) / 100 ;
-        const effective = Math.round(dmgs * (1 - reds));
+        const reds = Math.floor(((Math.floor(predClamped * combatTriangleMultiplier) / 100) + Number.EPSILON) * 100) / 100;
+        const effective = Math.floor(dmgs * (1 - reds));
 
         const vars = {
             "cr-eq-var-1":  { description: "Max hit", name: "MH", value: maxHit },
