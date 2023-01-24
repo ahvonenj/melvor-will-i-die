@@ -154,14 +154,12 @@ export class WIDMonster {
                 this.sleepDamageMultiplier = 1.2;
             }
 
-            // When you are sleeping, monsters hit for 20% more
-            // We're calculating the worst-case-scenario, so if a monster can sleep with any attack,
-            // we assume that the 20% always applies
+            // Torment and despair
             if(specialAttack.attack.onhitEffects.some((e) => e.curse !== undefined && e.curse.id === "melvorTotH:Despair") ||
             specialAttack.attack.prehitEffects.some((e) => e.curse !== undefined && e.curse.id === "melvorTotH:Torment")) {
-                canSleep = true;
-                this.canSleep = true;
-                this.sleepDamageMultiplier = 1.2;
+                //canSleep = true;
+                //this.canSleep = true;
+                //this.sleepDamageMultiplier = 1.2;
             }
 
             this.specialAttacks.push({
@@ -294,6 +292,19 @@ export class WIDMonster {
 
             explain.equation = equation;
             explain.vars = vars;
+            explain.simpleExplanation = WidMonsterUtil.maxHitEquationSimple(
+                this.name,
+                this.monsterId,
+                this.afflictionFactor,
+                this.normalAttackMaxHit, 
+                this.conditionDamageMultiplier, 
+                this.safetyFactor, 
+                this.monsterPassiveDecreasedPlayerDamageReduction, 
+                this._playerDamageReduction, 
+                this.combatTriangleMultiplier,
+                this.canStun,
+                this.canSleep
+            );
         } else {
             explain.bestAttackName = this.maxHittingSpecialAttack.specialAttackName;
             explain.maxHit = this.specialAttackMaxHit;
@@ -314,6 +325,19 @@ export class WIDMonster {
 
             explain.equation = equation;
             explain.vars = vars;
+            explain.simpleExplanation = WidMonsterUtil.maxHitEquationSimple(
+                this.name,
+                this.monsterId,
+                this.afflictionFactor,
+                this.specialAttackMaxHit, 
+                this.conditionDamageMultiplier, 
+                this.safetyFactor, 
+                this.monsterPassiveDecreasedPlayerDamageReduction, 
+                this._playerDamageReduction, 
+                this.combatTriangleMultiplier,
+                this.canStun,
+                this.canSleep
+            );
         }
 
         return explain;

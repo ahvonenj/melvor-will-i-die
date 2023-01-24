@@ -75,9 +75,9 @@ export class WidMonsterUtil {
         }
 
         return {
-            increasedMaxHitPercentModifier: 1 + (increasedMaxHitPercentModifier / 100),
+            increasedMaxHitPercentModifier: increasedMaxHitPercentModifier > 0 ? 1 + (increasedMaxHitPercentModifier / 100) : 1,
             increasedMaxHitFlatModifier,
-            decreasedMaxHitpointsModifier: 1 - (decreasedMaxHitpointsModifier / 100),
+            decreasedMaxHitpointsModifier: decreasedMaxHitpointsModifier > 0 ? 1 - (decreasedMaxHitpointsModifier / 100) : 1,
             decreasedDamageReductionModifier
         }
     }
@@ -169,6 +169,62 @@ export class WidMonsterUtil {
         `<span class = "cr-eq-var cr-eq-var-9">FDR</span><span class = "cr-eq-calc"> = Math.floor(<span class = "cr-eq-var cr-eq-var-8">DRR</span> * <span class = "cr-eq-var cr-eq-var-6">CBT</span>) / 100) = </span><span class = "cr-eq-val">${reds}</span><br/><br/>` +
         `<span class = "cr-eq-var cr-eq-var-10">EFMH</span><span class = "cr-eq-calc"> = Math.round(<span class = "cr-eq-var cr-eq-var-7">TDMG</span> * (1 - (<span class = "cr-eq-var cr-eq-var-9">FDR</span>)) = </span><span class = "cr-eq-val">${effective}</span>` +
         `</div>`, vars];
+    }
+
+    static maxHitEquationSimple(
+        monsterName, 
+        monsterId, 
+        afflictionFactor, 
+        maxHit, 
+        totalDamageMultiplier, 
+        safetyFactor, 
+        monsterPassiveDecreasedPlayerDamageReduction, 
+        playerDamageReduction, 
+        combatTriangleMultiplier,
+        canStun,
+        canSleep
+    ) {
+
+        const {
+            increasedMaxHitPercentModifier,
+            increasedMaxHitFlatModifier,
+            decreasedMaxHitpointsModifier,
+            decreasedDamageReductionModifier
+        } = WidMonsterUtil.getMonsterSpecificBullshit(monsterId, afflictionFactor);
+
+        const dmgs = ((((maxHit + increasedMaxHitFlatModifier) * totalDamageMultiplier * safetyFactor * increasedMaxHitPercentModifier) + Number.EPSILON) * 100) / 100;
+        
+        const pred = playerDamageReduction - monsterPassiveDecreasedPlayerDamageReduction - decreasedDamageReductionModifier;
+
+        const predClamped = pred < 0 ? 0 : pred;
+
+        const reds = Math.floor(((Math.floor(predClamped * combatTriangleMultiplier) / 100) + Number.EPSILON) * 100) / 100;
+        const effective = Math.floor(dmgs * (1 - reds));
+
+        /*let condString = canSleep ? `However, <span class = "cr-hl cr-hl-enemy">${monsterName}</span> is able to sleep, 
+        which increases damage taken by 20%.` : '';
+
+        condString = canStun ? `However, <span class = "cr-hl cr-hl-enemy">${monsterName}</span> is able to stun, 
+        which increases damage taken by 30%.` : condString;
+
+        let buffString = ``;
+
+        const ret = `<span class = "cr-hl cr-hl-enemy">${monsterName}</span> has a base max hit of 
+        <span class = "cr-hl cr-hl-dmg">${maxHit}</span>. ${condString}`*/
+
+        const maxHitMultToPercent = increasedMaxHitPercentModifier > 0 ? (increasedMaxHitPercentModifier - 1) * 100 : 0;
+
+        const ret = `Statistics:<br/>
+        Base max hit: <span class = "cr-hl cr-hl-dmg">${maxHit}</span><br/>
+        Inc. damage from stun: <span class = "cr-hl cr-hl-dmg">${canStun ? 30 : 0}%</span><br/>
+        Inc. damage from sleep: <span class = "cr-hl cr-hl-dmg">${canSleep ? 20 : 0}%</span><br/>
+        Max hit % inc. buff: <span class = "cr-hl cr-hl-dmg">${maxHitMultToPercent}%</span><br/>
+        Max hit inc. buff: <span class = "cr-hl cr-hl-dmg">${increasedMaxHitFlatModifier}</span><br/>
+        % decrease DR on hit: <span class = "cr-hl cr-hl-dmg">${decreasedDamageReductionModifier}%</span><br/>
+        Effective player DR: <span class = "cr-hl cr-hl-dmg">${Math.floor(reds * 100)}%</span><br/>
+        Effective max hit: <span class = "cr-hl cr-hl-dmg">${effective}</span>.`;
+
+        return ret;
     }
 
     static clampValue(value, min, max) {

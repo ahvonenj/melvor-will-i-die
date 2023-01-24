@@ -26,6 +26,7 @@ export function setup(ctx) {
                     ui_sticky_safety_panel: false,
                     ui_t_in_slayer_task: false,
                     calculations: false,
+                    calculations_simple: false,
                     debug: false
                 }
             };
@@ -48,6 +49,7 @@ export function setup(ctx) {
             const slayerTaskTButtonDefault = willIDieStorage.settings.ui_t_in_slayer_task;
 
             const calculationsDefault = willIDieStorage.settings.calculations;
+            const calculationsSimpleDefault = willIDieStorage.settings.calculations_simple;
             const debugDefault = willIDieStorage.settings.debug;
 
             safetySettings.add({
@@ -244,6 +246,20 @@ export function setup(ctx) {
                     ctx.characterStorage.setItem('willidie', willIDieStorage);
                 }
             });
+
+            calculationDisplaySettings.add({
+                type: 'switch',
+                name: 'show_simple_calculations',
+                label: 'When enabled, simplified calculation details will be displayed in the Will I Die? dropdown-menu',
+                hint: 'Not recommended to be used with "Show calculations" enabled',
+                default: calculationsSimpleDefault,
+                onChange: (newValue) => { 
+                    combatResolver.showSimpleCalculations = newValue; 
+                    combatResolver.recalculateSurvivability("Settings changed"); 
+                    willIDieStorage.settings.calculations_simple = newValue;
+                    ctx.characterStorage.setItem('willidie', willIDieStorage);
+                }
+            });
         
             debugSettings.add({
                 type: 'switch',
@@ -297,6 +313,7 @@ export function setup(ctx) {
             combatResolver.slayerTaskTButton = slayerTaskTButtonDefault;
 
             combatResolver.showCalculations = calculationsDefault;
+            combatResolver.showSimpleCalculations = calculationsSimpleDefault;
             combatResolver._debug = debugDefault;
 
             combatResolver.recalculateSurvivability("Settings loaded");
@@ -649,6 +666,20 @@ export function setup(ctx) {
     ctx.patch(Agility, 'onObstacleChange').after(() => {
         combatResolver.recalculateSurvivability("Agility obstacle changed");
     });
+
+    ctx.patch(SlayerTask, 'setTask').after(function() {
+        if(combatResolver && combatResolver.renderer) {
+            if(combatResolver.targetType === "MONSTER" && 
+            combatResolver?.currentSurvivabilityState?.monster?.dummyMonster?.canSlayer) {
+                combatResolver.renderer._inactivateTButtons({
+                    specific: 'slayerTaskPanel',
+                    clearState: true
+                });
+            }   
+        }
+        
+    });
+
 
     // Hook to onInterfaceReady
     // We use this event to create our header component for this mod

@@ -6,6 +6,8 @@ export class CombatResolver {
     targetArea = null;
     targetMonster = null;
     targetSlayerTask = null;
+    slayerTaskTierSelected = null;
+    
     currentSurvivabilityState = null;
     survivabilityStateError = 0;
     targetType = null;
@@ -19,6 +21,7 @@ export class CombatResolver {
     slayerTaskTButton = false;
 
     showCalculations = false;
+    showSimpleCalculations = false;
     integrateSemiAutoSlayer = false;
 
     pendingRecalculation = false;
@@ -153,9 +156,6 @@ export class CombatResolver {
             areaData = game.combatAreaDisplayOrder.find(d => d.id === areaId);
         }
 
-        this._log(areaData);
-        this._log(monsterId)
-
         if(game.combat.fightInProgress || game.combat.isActive) {
             this._log(`WillIDie: Fight in progress, not changing monsters`);
             Toastify({
@@ -216,7 +216,6 @@ export class CombatResolver {
         const unset = this.renderer._handleTButton(e, "SLAYER");
 
         if(unset) {
-            this.slayerTaskTierSelected = null;
             return;
         }
         
@@ -371,7 +370,8 @@ export class CombatResolver {
             canDie: monster.effectiveMaxHit >= autoEatThreshold,
             autoEatThreshold,
             normalAutoEatThreshold,
-            playerSelfHit: monster.effectiveDamageTakenPerAttack
+            playerSelfHit: monster.effectiveDamageTakenPerAttack,
+            monster: monster
         }
 
         if(area && widMonsters) {
@@ -412,6 +412,7 @@ export class CombatResolver {
             safetyFactor: this.safetyFactor ?? null,
             skipRequirements: this.skipRequirements ?? null,
             showCalculations: this.showCalculations ?? null,
+            showSimpleCalculations: this.showSimpleCalculations ?? null,
             integrateSemiAutoSlayer: this.integrateSemiAutoSlayer ?? null,
             slayerTaskTierSelected: this.slayerTaskTierSelected ?? null,
             survivabilityStateError: this.survivabilityStateError ?? null

@@ -210,11 +210,14 @@ export class WidRenderer {
                 const areas = [...game.combatAreaDisplayOrder, ...game.slayerAreaDisplayOrder, ...game.dungeonDisplayOrder];
                 const area = areas.find(a => a.monsters.find(m => m.id === taskMonster.id));
 
-                self.combatResolver.setTargetMonster(
-                    e, 
-                    area.id,
-                    taskMonster.id,
-                    area instanceof Dungeon ? 'dungeon' : area instanceof SlayerArea ? 'slayer' : '');
+                if(self && self.combatResolver) {
+                    self.combatResolver.setTargetMonster(
+                        e, 
+                        area.id,
+                        taskMonster.id,
+                        area instanceof Dungeon ? 'dungeon' : area instanceof SlayerArea ? 'slayer' : ''
+                    );
+                }
             }
         }
 
@@ -286,14 +289,20 @@ export class WidRenderer {
     }
 
     _removeStatsPanelSafetyIndicator() {
-        if(this.statsPanelSafetyIndicatorTextCol && this.statsPanelSafetyIndicatorValueCol) {
-            this.statsPanelSafetyIndicatorTextCol.remove();
-            this.statsPanelSafetyIndicatorValueCol.remove();
-
+        if(this.statsPanelSafetyIndicatorTextCol && 
+            this.statsPanelSafetyIndicatorValueCol &&
+            this.statsPanelSafetyIndicatorText &&
+            this.statsPanelSafetyIndicatorValue) {
             if(this.statsPanelSafetyIndicatorValueColTippy) {
                 this.statsPanelSafetyIndicatorValueColTippy.destroy();
                 this.statsPanelSafetyIndicatorValueColTippy = null;
             }
+
+            this.statsPanelSafetyIndicatorText.remove();
+            this.statsPanelSafetyIndicatorValue.remove();
+            this.statsPanelSafetyIndicatorValueCol.remove();
+            this.statsPanelSafetyIndicatorTextCol.remove();
+            
 
             return true;
         }
@@ -416,6 +425,10 @@ export class WidRenderer {
                 obj.indicator.textContent = '?';
                 obj.indicator.classList.add('combat-resolver-unknown')
             });
+
+            if(this.statsPanelSafetyIndicatorValueColTippy)
+                this.statsPanelSafetyIndicatorValueColTippy.setContent(``);
+                
             return;
         }
 
@@ -438,7 +451,9 @@ export class WidRenderer {
 
         if(survivabilityStateOk) {
             const { effectiveMaxHit } = this.combatResolver.currentSurvivabilityState;
-            this.statsPanelSafetyIndicatorValueColTippy.setContent(`Max hit: ${effectiveMaxHit}`);
+
+            if(this.statsPanelSafetyIndicatorValueColTippy)
+                this.statsPanelSafetyIndicatorValueColTippy.setContent(`Max hit: ${effectiveMaxHit}`);
         }
     }
 
@@ -449,9 +464,20 @@ export class WidRenderer {
         this.combatResolver._log(`Will I Die?: Rerendering`);
 
         this._reRenderIndicators(
+            this.combatResolver &&
             this.combatResolver.survivabilityStateError === 0 &&
-            this.combatResolver.currentSurvivabilityState
+            this.combatResolver.currentSurvivabilityState !== null
         );
+
+        if(!this.combatResolver) {
+            this.tabContent.innerHTML = `Will I Die? is currently unable to calculate your survivability.<br/><br/>
+            This is a SCRIPT ERROR, which you should report to the developer!<br/><br/>`;
+
+            this._reRenderMonsterTabs();
+            this._reRenderSafetyFactor();
+            this._reRenderIntegration();
+            return;
+        }
 
         if(this.combatResolver.survivabilityStateError === 1) {
             this.tabContent.innerHTML = `Will I Die? is currently unable to calculate your survivability.<br/><br/>
@@ -466,7 +492,7 @@ export class WidRenderer {
 
         // No area target selected or some other issue - can't tell if safe or not so we render ?
         if(!this.combatResolver.currentSurvivabilityState) {
-            this.tabContent.innerHTML = `Got to the Combat Area Selection page to first set a combat area target for Will I Die?<br/><br/>
+            this.tabContent.innerHTML = `Go to the "Combat Area Selection"-page to first set a combat area target for Will I Die?<br/><br/>
             After you have set the combat area target, Will I Die? will begin to calculate whether you will live or die 
             when idling in the selected area, based on your current gear and statistics.`;
 
@@ -487,7 +513,7 @@ export class WidRenderer {
             playerCanKillSelf,
             playerSelfHit,
             normalAutoEatThreshold,
-            widMonsters
+            widMonsters,
         } = this.combatResolver.currentSurvivabilityState;
         
         const numberOrderStrings = ['', 'second ', 'third ', 'fourth ', 'fifth ', 'sixth ', 'seventh ', 'eighth ', 'ninth ', 'tenth '];
@@ -520,6 +546,7 @@ export class WidRenderer {
                 <span class = "cr-hl cr-hl-health">${autoEatThreshold}</span>,
                 <span class = "cr-hl cr-hl-enemy">${maxHitReason.monsterName}</span> could kill you.<br/><br/>` +
                 afflictionMessage +
+                `${this.combatResolver.showSimpleCalculations ? maxHitReason.simpleExplanation : ''}` +
                 `${this.combatResolver.showCalculations ? maxHitReason.equation : ''}`;
             }
             
@@ -539,6 +566,7 @@ export class WidRenderer {
                 <span class = "cr-hl cr-hl-health">${autoEatThreshold}</span>,
                 <span class = "cr-hl cr-hl-enemy">${maxHitReason.monsterName}</span> shouldn't be able to kill you.<br/><br/>` +
                 afflictionMessage +
+                `${maxHitReason.simpleExplanation}` +
                 `<span class = "cr-hl-warn">THESE VALUES MIGHT NOT BE CORRECT, BECAUSE RECALCULATION IS NEEDED.</span><br/><br/>
                 <span class = "cr-hl-warn">LEAVE COMBAT TO RECALCULATE SURVIVABILITY</span>`;
             } else {
@@ -552,6 +580,7 @@ export class WidRenderer {
                 <span class = "cr-hl cr-hl-health">${autoEatThreshold}</span>,
                 <span class = "cr-hl cr-hl-enemy">${maxHitReason.monsterName}</span> shouldn't be able to kill you.<br/><br/>` +
                 afflictionMessage +
+                `${this.combatResolver.showSimpleCalculations ? maxHitReason.simpleExplanation : ''}` +
                 `${this.combatResolver.showCalculations ? maxHitReason.equation : ''}`;
             }
             
@@ -563,30 +592,64 @@ export class WidRenderer {
 
     _handleTButton(e) {
         if(e.target.classList.contains('cr-active')) {
-            this.combatResolver.targetMonster = null;
-            this.combatResolver.targetArea = null;
-            this.combatResolver.targetSlayerTask = null;
-            this.combatResolver.recalculateSurvivability("Target set to null", "NONE", null);
             e.target.classList.remove('cr-active');
+            this._clearState("Cleared target");
             return true;
+        }
+
+        this._inactivateTButtons();
+        e.target.classList.add('cr-active');
+
+        return false;
+    }
+
+    _inactivateTButtons(options) {
+        const defaults = {
+            clearState: false,
+            specific: null
+        }
+
+        const { clearState, specific } = {...defaults, ...options};
+
+        if(specific === "slayerTaskPanel") {
+            const TButton = document.querySelector('#combat-resolver-set-monster-target-from-task');
+
+            if(TButton) {
+                TButton.classList.remove('cr-active');
+            }
+
+            this._clearState("Inactivated slayer task panel T button");
+            return;
         }
 
         const areaTElements = document.querySelectorAll('.combat-resolver-set-area-target');
         const monsterTElements = document.querySelectorAll('.combat-resolver-set-monster-target');
         const slayerTaskTElements = document.querySelectorAll('.combat-resolver-set-slayer-task-target');
         const slayerTaskPanelTButton = document.querySelector('#combat-resolver-set-monster-target-from-task');
-        const TElements = [...areaTElements, ...monsterTElements, ...slayerTaskTElements];
+        const TElements = [...areaTElements, ...monsterTElements, ...slayerTaskTElements, slayerTaskPanelTButton];
 
         TElements.forEach((e) => {
-            e.classList.remove('cr-active');
-        })
+            if(e) {
+                e.classList.remove('cr-active');
+            }
+        });
 
-        if(slayerTaskPanelTButton)
-            slayerTaskPanelTButton.classList.remove('cr-active');
-        
-        e.target.classList.add('cr-active');
+        if(clearState) {
+            this._clearState("Inactivated all T buttons");
+        }
+    }
 
-        return false;
+    _clearState(reason = "Cleared state") {
+        if(this.combatResolver) {
+            this.combatResolver.targetMonster = null;
+            this.combatResolver.targetArea = null;
+            this.combatResolver.targetSlayerTask = null;
+            this.combatResolver.currentSurvivabilityState = null;
+            this.combatResolver.targetType = null;
+            this.combatResolver.pendingRecalculation = false;
+            this.combatResolver.slayerTaskTierSelected = null;
+            this._reRender();
+        }
     }
 
     handleMonsterTabClick(e) {
