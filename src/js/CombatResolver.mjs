@@ -56,7 +56,7 @@ export class CombatResolver {
         e.preventDefault(); 
         e.stopPropagation();
 
-        this._log(`WillIDie: Setting new target area`);
+        this._log(`Will I Die?: Setting new target area`);
 
         let areaData = null;
 
@@ -71,7 +71,7 @@ export class CombatResolver {
         this._log(areaData);
 
         if(!this.skipRequirements && areaData instanceof Dungeon && areaData.unlockRequirement !== undefined && !game.checkRequirements(areaData.unlockRequirement)) {
-            this._log("WillIDie: Cancelled area target setting - NOT UNLOCKED");
+            this._log("Will I Die?: Cancelled area target setting - NOT UNLOCKED");
             Toastify({
                 text: `Will I Die?: Area is not unlocked`,
                 duration: 1500,
@@ -87,7 +87,7 @@ export class CombatResolver {
             const slayerLevelReq = areaData.slayerLevelRequired;
 
             if (!this.skipRequirements && !game.checkRequirements(areaData.entryRequirements, false, slayerLevelReq)) {
-                this._log("WillIDie: Cancelled area target setting - FAILED REQUIREMENTS");
+                this._log("Will I Die?: Cancelled area target setting - FAILED REQUIREMENTS");
                 Toastify({
                     text: `Will I Die?: Requirements not met`,
                     duration: 1500,
@@ -101,7 +101,7 @@ export class CombatResolver {
         }
 
         if(game.combat.fightInProgress || game.combat.isActive) {
-            this._log(`WillIDie: Fight in progress, not changing areas`);
+            this._log(`Will I Die?: Fight in progress, not changing areas`);
             Toastify({
                 text: `Will I Die?: Cannot change target area while in combat`,
                 duration: 1500,
@@ -126,7 +126,7 @@ export class CombatResolver {
         e.preventDefault(); 
         e.stopPropagation();
 
-        this._log(`WillIDie: Setting new target monster`);
+        this._log(`Will I Die?: Setting new target monster`);
 
         let areaData = null;
 
@@ -137,7 +137,7 @@ export class CombatResolver {
                 const slayerLevelReq = areaData.slayerLevelRequired;
     
                 if (!this.skipRequirements && !game.checkRequirements(areaData.entryRequirements, false, slayerLevelReq)) {
-                    this._log("WillIDie: Cancelled area target setting - FAILED REQUIREMENTS");
+                    this._log("Will I Die?: Cancelled area target setting - FAILED REQUIREMENTS");
                     Toastify({
                         text: `Will I Die?: Requirements not met`,
                         duration: 1500,
@@ -181,10 +181,10 @@ export class CombatResolver {
         e.preventDefault(); 
         e.stopPropagation();
 
-        this._log(`WillIDie: Setting new target slayer task`);
+        this._log(`Will I Die?: Setting new target slayer task`);
 
         if(game.combat.fightInProgress || game.combat.isActive) {
-            this._log(`WillIDie: Fight in progress, not changing slayer task`);
+            this._log(`Will I Die?: Fight in progress, not changing slayer task`);
             Toastify({
                 text: `Will I Die?: Cannot change target slayer task while in combat`,
                 duration: 1500,
@@ -228,7 +228,7 @@ export class CombatResolver {
     recalculateSurvivability(reason = "", areaOrMonster, target) {
 
         if(game.combat.fightInProgress || game.combat.isActive) {
-            this._log(`WillIDie: Fight in progress, not calculating survivability (${reason})`);
+            this._log(`Will I Die?: Fight in progress, not calculating survivability (${reason})`);
             this.pendingRecalculation = true;
             this.renderer._reRender();
             return;
@@ -237,7 +237,7 @@ export class CombatResolver {
         this.currentSurvivabilityState = null;
 
         if(areaOrMonster === "NONE") {
-            this._log(`WillIDie: Target removed, not calculating survivability`);
+            this._log(`Will I Die?: Target removed, not calculating survivability`);
             this.renderer._reRender();
             return;
         }
@@ -265,24 +265,24 @@ export class CombatResolver {
             this.targetArea = null;
         } else {
             if(this.targetArea && !this.targetMonster && !this.targetSlayerTask) {
-                this._log(`WillIDie: Found unambiguous area target for cold function call, recalculating survivability`);
+                this._log(`Will I Die?: Found unambiguous area target for cold function call, recalculating survivability`);
                 widMonsters = this.targetArea.monsters.map(m => new WIDMonster(m.id, this.targetArea, this.safetyFactor, this.afflictionFactor));
                 areaOrMonster = "AREA";
                 target = this.targetArea;
             } else if(this.targetMonster && !this.targetArea && !this.targetSlayerTask) {
-                this._log(`WillIDie: Found unambiguous monster target for cold function call, recalculating survivability`);
+                this._log(`Will I Die?: Found unambiguous monster target for cold function call, recalculating survivability`);
                 const areaForMonster = areas.find(a => a.monsters.find(m => m.id === this.targetMonster))
                 widMonsters = [new WIDMonster(this.targetMonster, areaForMonster, this.safetyFactor, this.afflictionFactor)];
                 areaOrMonster = "MONSTER";
                 target = this.targetMonster;
             } else if(this.targetSlayerTask && !this.targetArea && !this.targetMonster) {
-                this._log(`WillIDie: Found unambiguous slayer target for cold function call, recalculating survivability`);
+                this._log(`Will I Die?: Found unambiguous slayer target for cold function call, recalculating survivability`);
                 const areaForMonster = areas.find(a => a.monsters.find(m => m.id === this.targetSlayerTask[0].id))
                 widMonsters = this.targetSlayerTask.map(m => new WIDMonster(m.id, areaForMonster, this.safetyFactor, this.afflictionFactor));
                 areaOrMonster = "SLAYER";
                 target = this.targetSlayerTask;
             } else {
-                this._log(`WillIDie: Could not resolve cold function call, not recalculating survivability`);
+                this._log(`Will I Die?: Could not resolve cold function call, not recalculating survivability`);
                 this.renderer._reRender();
                 return;
             }
@@ -290,18 +290,18 @@ export class CombatResolver {
 
         this.selectedMonsterTab = 0;
 
-        this._log(`WillIDie: Recalculating survivability (${reason})`);
+        this._log(`Will I Die?: Recalculating survivability (${reason})`);
 
         this.targetType = areaOrMonster;
 
         if(this.targetType === "SLAYER" && this.integrateSemiAutoSlayer && mod.api.SEMIAutoSlayer !== undefined) {
-            this._log(`WillIDie: SEMI Auto Slayer integration is enabled and possible, filtering out monsters that are blocked in the SEMI Auto Slayer task list`);
+            this._log(`Will I Die?: SEMI Auto Slayer integration is enabled and possible, filtering out monsters that are blocked in the SEMI Auto Slayer task list`);
             const blockedBySemi = mod.api.SEMIAutoSlayer.getMonsterStates();
             widMonsters = widMonsters.filter(m => blockedBySemi[m.monsterId] === undefined || blockedBySemi[m.monsterId] !== 1);
         }
 
         if(widMonsters.length === 0) {
-            this._log(`WillIDie: No monsters left after filtering, not recalculating survivability`);
+            this._log(`Will I Die?: No monsters left after filtering, not recalculating survivability`);
             this.currentSurvivabilityState = null;
             this.survivabilityStateError = 1;
             this.renderer._reRender();

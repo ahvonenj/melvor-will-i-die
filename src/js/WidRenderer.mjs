@@ -37,13 +37,13 @@ export class WidRenderer {
     _createHeaderComponent() {
         if(this.headerComponentCreated) return;
 
-        this.combatResolver._log(`WillIDie: Creating header component`);
+        this.combatResolver._log(`Will I Die?: Creating header component`);
 
         // We want to append our own header tab after equipment tab in the header
         const targetTab = document.querySelector('#page-header-equipment-dropdown').parentElement;
 
         if(!targetTab) {
-            console.error(`WillIDie: COULD NOT CREATE HEADER COMPONENT`);
+            console.error(`Will I Die?: COULD NOT CREATE HEADER COMPONENT`);
             return;
         }
 
@@ -446,7 +446,7 @@ export class WidRenderer {
     _reRender() {
         if(!this.headerComponentCreated) return;
 
-        this.combatResolver._log(`WillIDie: Rerendering`);
+        this.combatResolver._log(`Will I Die?: Rerendering`);
 
         this._reRenderIndicators(
             this.combatResolver.survivabilityStateError === 0 &&
@@ -454,7 +454,7 @@ export class WidRenderer {
         );
 
         if(this.combatResolver.survivabilityStateError === 1) {
-            this.tabContent.innerHTML = `WillIDie is currently unable to calculate your survivability.<br/><br/>
+            this.tabContent.innerHTML = `Will I Die? is currently unable to calculate your survivability.<br/><br/>
             This is likely due to trying to target a slayer tier with SEMI Auto Slayer integration enabled,
             but your current task block list is filtering out all tasks in that tier.<br/><br/>`;
 
@@ -466,8 +466,8 @@ export class WidRenderer {
 
         // No area target selected or some other issue - can't tell if safe or not so we render ?
         if(!this.combatResolver.currentSurvivabilityState) {
-            this.tabContent.innerHTML = `Got to the Combat Area Selection page to first set a combat area target for WillIDie.<br/><br/>
-            After you have set the combat area target, WillIDie will begin to calculate whether you will live or die 
+            this.tabContent.innerHTML = `Got to the Combat Area Selection page to first set a combat area target for Will I Die?<br/><br/>
+            After you have set the combat area target, Will I Die? will begin to calculate whether you will live or die 
             when idling in the selected area, based on your current gear and statistics.`;
 
             this._reRenderMonsterTabs();

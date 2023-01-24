@@ -155,7 +155,7 @@ export class WidMonsterUtil {
 
         return [`<div class = "cr-eq-container">` + 
         `<span class = "cr-eq-var cr-eq-var-1">MH</span> = <span class = "cr-eq-val">${maxHit}</span><br/>` +
-        `<span class = "cr-eq-var cr-eq-var-2">CDD</span><span class = "cr-eq-calc"> = </span><span class = "cr-eq-val">${totalDamageMultiplier}</span><br/>` +
+        `<span class = "cr-eq-var cr-eq-var-2">CD</span><span class = "cr-eq-calc"> = </span><span class = "cr-eq-val">${totalDamageMultiplier}</span><br/>` +
         `<span class = "cr-eq-var cr-eq-var-3">SF</span><span class = "cr-eq-calc"> = </span><span class = "cr-eq-val">${safetyFactor}</span><br/>` +
         `<span class = "cr-eq-var cr-eq-var-4">DDR</span><span class = "cr-eq-calc"> = </span><span class = "cr-eq-val">${monsterPassiveDecreasedPlayerDamageReduction}</span><br/>` +
         `<span class = "cr-eq-var cr-eq-var-5">PDR</span><span class = "cr-eq-calc"> = </span><span class = "cr-eq-val">${playerDamageReduction}</span><br/>` +   
