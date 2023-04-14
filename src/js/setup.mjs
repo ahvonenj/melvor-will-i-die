@@ -447,17 +447,17 @@ export function setup(ctx) {
         }), createElement('th', {
             attributes: [['style', 'width: 125px;']],
             children: [createElement('small', {
-                text: getLangString('COMBAT_MISC', 'NAME')
+                text: getLangString('COMBAT_MISC_NAME')
             })],
         }), createElement('th', {
             attributes: [['style', 'width: 50px;']],
             children: [createElement('small', {
-                text: getLangString('COMBAT_MISC', 'TYPE')
+                text: getLangString('COMBAT_MISC_TYPE')
             })],
         }), createElement('th', {
             classList: ['text-center'],
             children: [createElement('small', {
-                text: getLangString('COMBAT_MISC', 'OPTIONS')
+                text: getLangString('COMBAT_MISC_OPTIONS')
             })],
         }));
         const body = table.appendChild(createElement('tbody'));
@@ -466,13 +466,13 @@ export function setup(ctx) {
             const fightButton = createElement('button', {
                 classList: ['btn', 'btn-sm', 'btn-danger', 'm-1'],
                 attributes: [['role', 'button']],
-                text: getLangString('COMBAT_MISC', '53'),
+                text: getLangString('COMBAT_MISC_53'),
             });
             fightButton.onclick = ()=>game.combat.selectMonster(monster, areaData);
             const dropsButton = createElement('button', {
                 classList: ['btn', 'btn-sm', 'btn-primary', 'm-1'],
                 attributes: [['role', 'button']],
-                text: getLangString('COMBAT_MISC', '104'),
+                text: getLangString('COMBAT_MISC_104'),
             });
             dropsButton.onclick = (event)=>{
                 viewMonsterDrops(monster, false);
@@ -507,7 +507,7 @@ export function setup(ctx) {
                 text: monster.name,
                 children: [createElement('br'), createElement('small', {
                     classList: ['font-w400'],
-                    text: templateString(getLangString('COMBAT_MISC', '93'), {
+                    text: templateString(getLangString('COMBAT_MISC_93'), {
                         level: `${monster.combatLevel}`
                     }),
                 }), createElement('br'), createElement('small', {
@@ -558,7 +558,7 @@ export function setup(ctx) {
                 });
                 coinImage.src = cdnMedia("assets/media/main/slayer_coins.svg");
                 const rangeText = `${data.minLevel}${data.maxLevel === Infinity ? '+' : ` - ${data.maxLevel}`}`;
-                const costText = data.cost === 0 ? getLangString('COMBAT_MISC', 'COST_FREE') : numberWithCommas(data.cost);
+                const costText = data.cost === 0 ? getLangString('COMBAT_MISC_COST_FREE') : numberWithCommas(data.cost);
 
                 // --------------------------------------- OVERRIDE ---------------------------------------
 
