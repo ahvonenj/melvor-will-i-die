@@ -593,7 +593,7 @@ export function setup(ctx) {
                 slayerImage.src = cdnMedia("assets/media/skills/slayer/slayer.svg");
                 button.appendChild(createElement('span', {
                     classList: ['text-danger']
-                })).append(...templateLangStringWithNodes('MENU_TEXT', 'REQUIRES_SKILL_LEVEL', {
+                })).append(...templateLangStringWithNodes('MENU_TEXT_REQUIRES_SKILL_LEVEL', {
                     skillImage: slayerImage
                 }, {
                     level: `${data.slayerLevel}`
