@@ -30,7 +30,7 @@
     border-radius: 2px;
     display: inline-block;
     transform: translateY(2px);
-    margin-left: 10px;
+    margin-left: 0.25rem;
 }
 
 .combat-resolver-set-monster-target:hover {
