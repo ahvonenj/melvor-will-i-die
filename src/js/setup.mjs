@@ -354,8 +354,7 @@ export function setup(ctx) {
     
             resolverAreaTargetButton.onclick = (e) => combatResolver.setTargetArea(
                 e, 
-                areaData.id, 
-                areaData instanceof Dungeon ? 'dungeon' : areaData instanceof SlayerArea ? 'slayer' : ''
+                areaData
             );
         }
     });
@@ -377,9 +376,8 @@ export function setup(ctx) {
     
             resolverMonsterTargetButton.onclick = (e) => combatResolver.setTargetMonster(
                 e, 
-                areaData.id,
                 monster.id,
-                areaData instanceof Dungeon ? 'dungeon' : areaData instanceof SlayerArea ? 'slayer' : ''
+                areaData
             );
 
             if (row.lastElementChild) {

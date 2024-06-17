@@ -384,7 +384,8 @@ export class WIDMonster {
 
     _computeStandardDamageReduction() {
         let reduction = this.dummyPlayer.equipmentStats.damageReduction;
-        reduction += this.dummyPlayer.modifiers.getFlatDamageReductionModifier();
+		// 
+        reduction += this.dummyPlayer.stats.getResistance(game.damageTypes.getObjectSafe("melvorD:Normal"))
         reduction *= 1 + (this.dummyPlayer.modifiers.increasedDamageReductionPercent - this.dummyPlayer.modifiers.decreasedDamageReductionPercent) / 100;
 
         if (this.dummyPlayer.modifiers.halveDamageReduction > 0)
@@ -460,7 +461,7 @@ export class WIDMonster {
     }
 
     _combatTriangleMultiplier() {
-        const reductions = this.gameClone.currentGamemode.combatTriangle.reductionModifier;
+        const reductions = this.dummyPlayer.manager.combatTriangle.reductionModifier;
         return reductions[this._playerAttackStyle][this.attackStyle];
     }
 

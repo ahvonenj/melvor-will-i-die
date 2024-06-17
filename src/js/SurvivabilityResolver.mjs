@@ -1,42 +1,13 @@
 import { WIDMonster } from "./widmonster.mjs";
 import { WidRenderer } from "./WidRenderer.mjs";
 
-export class CombatResolver {
+export class SurvabilityResolver {
 
-    targetArea = null;
-    targetMonster = null;
-    targetSlayerTask = null;
-    slayerTaskTierSelected = null;
-    
-    currentSurvivabilityState = null;
-    survivabilityStateError = 0;
-    targetType = null;
-
-    safetyFactor = 1.02;
-    afflictionFactor = 20;
-    skipRequirements = false;
-
-    safetyInStats = false;
-    stickySafetyPanel = false;
-    slayerTaskTButton = false;
-
-    showCalculations = false;
-    showSimpleCalculations = false;
-    integrateSemiAutoSlayer = false;
-
-    pendingRecalculation = false;
-
-    renderer = null;
-
-    _debugValues = {
-        monsters: [],
-        mostDangerousMonster: null,
-        player: {
-            damageReduction: 0
-        }
-    }
-
-	areasCache = null;
+	ctx = null;
+	renderer = null;
+	safetyFactor = 1.02;
+	skipRequirements = false;
+	_debug = false;
 
     constructor() {
 
@@ -45,7 +16,7 @@ export class CombatResolver {
     // Called in setup.mjs, after settings have been created
     _init(ctx) {
         this._ctx = ctx;
-        this.renderer= new WidRenderer(this._ctx, this);
+        this.renderer = new WidRenderer(this._ctx, this);
 
         this.safetyFactor = 1 + (ctx.settings.section('Safety').get('safety_factor') / 100);
         this.skipRequirements = ctx.settings.section('Requirements').get('skip_requirements');
@@ -57,7 +28,7 @@ export class CombatResolver {
         console.log(str, ...args);
     }
 
-    _checkFightInProgress(msgIfErr) {
+	_checkFightInProgress(msgIfErr) {
 		if(game.combat.fightInProgress || game.combat.isActive) {
 
             this._log(`Will I Die?: Fight in progress, not changing areas`);
@@ -77,14 +48,11 @@ export class CombatResolver {
 		return false;
 	}
 
-	setTargetArea(e, area) {
+	setTargetArea(e, areaId, areaType) {
         e.preventDefault(); 
         e.stopPropagation();
 
         this._log(`Will I Die?: Setting new target area`);
-
-		const areaId = area.id;
-		const areaType = this._resolveAreaType(area);
 
         let areaData = this._getArea(areaType).find(d => d.id === areaId);
 
@@ -137,14 +105,11 @@ export class CombatResolver {
         this.recalculateSurvivability("Target area changed", "AREA", areaData);
     }
     
-    setTargetMonster(e,  monsterId, area) {
+    setTargetMonster(e, areaId, monsterId, areaType) {
         e.preventDefault(); 
         e.stopPropagation();
 
         this._log(`Will I Die?: Setting new target monster`);
-
-		const areaId = area.id;
-		const areaType = this._resolveAreaType(area);
 
         let areaData = this._getArea(areaType).find(d => d.id === areaId);
 
@@ -213,7 +178,7 @@ export class CombatResolver {
         this.recalculateSurvivability("Target slayer task changed", "SLAYER", monsters);
     }
 
-    recalculateSurvivability(reason = "", areaOrMonster, target) {
+	recalculateSurvivability(reason = "", areaOrMonster, target) {
 
         if(game.combat.fightInProgress || game.combat.isActive) {
             this._log(`Will I Die?: Fight in progress, not calculating survivability (${reason})`);
@@ -226,6 +191,12 @@ export class CombatResolver {
 
         if(areaOrMonster === "NONE") {
             this._log(`Will I Die?: Target removed, not calculating survivability`);
+            this.renderer._reRender();
+            return;
+        }
+
+		if(typeof areaOrMonster === 'undefined' || areaOrMonster === null) {
+            this._log(`Will I Die?: Target null, not calculating survivability`);
             this.renderer._reRender();
             return;
         }
@@ -251,29 +222,6 @@ export class CombatResolver {
             this.targetSlayerTask = target;
             this.targetMonster = null;
             this.targetArea = null;
-        } else {
-            if(this.targetArea && !this.targetMonster && !this.targetSlayerTask) {
-                this._log(`Will I Die?: Found unambiguous area target for cold function call, recalculating survivability`);
-                widMonsters = this.targetArea.monsters.map(m => new WIDMonster(m.id, this.targetArea, this.safetyFactor, this.afflictionFactor));
-                areaOrMonster = "AREA";
-                target = this.targetArea;
-            } else if(this.targetMonster && !this.targetArea && !this.targetSlayerTask) {
-                this._log(`Will I Die?: Found unambiguous monster target for cold function call, recalculating survivability`);
-                const areaForMonster = areas.find(a => a.monsters.find(m => m.id === this.targetMonster))
-                widMonsters = [new WIDMonster(this.targetMonster, areaForMonster, this.safetyFactor, this.afflictionFactor)];
-                areaOrMonster = "MONSTER";
-                target = this.targetMonster;
-            } else if(this.targetSlayerTask && !this.targetArea && !this.targetMonster) {
-                this._log(`Will I Die?: Found unambiguous slayer target for cold function call, recalculating survivability`);
-                const areaForMonster = areas.find(a => a.monsters.find(m => m.id === this.targetSlayerTask[0].id))
-                widMonsters = this.targetSlayerTask.map(m => new WIDMonster(m.id, areaForMonster, this.safetyFactor, this.afflictionFactor));
-                areaOrMonster = "SLAYER";
-                target = this.targetSlayerTask;
-            } else {
-                this._log(`Will I Die?: Could not resolve cold function call, not recalculating survivability`);
-                this.renderer._reRender();
-                return;
-            }
         }
 
         this.selectedMonsterTab = 0;
@@ -325,21 +273,6 @@ export class CombatResolver {
 		this.areasCache = areas;
 
 		return areas;
-	}
-
-	_resolveAreaType(area) {
-		if(area instanceof CombatArea) return "combat";
-		if(area instanceof Dungeon) return "dungeon";
-		if(area instanceof SlayerArea) return "slayer";
-		if(area instanceof Stronghold) return "stronghold";
-
-		if(area instanceof CombatArea && area.realm._localID === "Abyssal") return "abyssalcombat";
-		if(area instanceof SlayerArea && area.realm._localID === "Abyssal") return "abyssalslayer";
-		if(area instanceof Stronghold && area.realm._localID === "Abyssal") return "abyssalstronghold";
-
-		if(area instanceof AbyssDepth) return "abyss";
-
-		return null;
 	}
 
 	_getArea(type) {
