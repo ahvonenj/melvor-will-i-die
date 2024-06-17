@@ -67,7 +67,7 @@ export class WIDMonster {
         this.dummyMonster = this.gameClone.monsters.find(m => m.id === this.monsterId);
         this.media = this.dummyMonster.media;
 
-        this.dummyEnemy.setMonster(this.dummyMonster);
+        this.dummyEnemy.setNewMonster(this.dummyMonster);
         this.dummyEnemy.target = this.dummyPlayer;
 
         this.dummyEnemy = new Enemy(this.gameClone.combat, this.gameClone);
@@ -76,7 +76,7 @@ export class WIDMonster {
         this.dummyMonster = this.gameClone.monsters.find(m => m.id === this.monsterId);
         this.media = this.dummyMonster.media;
 
-        this.dummyEnemy.setMonster(this.dummyMonster);
+        this.dummyEnemy.setNewMonster(this.dummyMonster);
         this.dummyEnemy.target = this.dummyPlayer;
 
 

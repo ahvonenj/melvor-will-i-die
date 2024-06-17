@@ -36,6 +36,8 @@ export class CombatResolver {
         }
     }
 
+	areasCache = null;
+
     constructor() {
 
     }
@@ -64,11 +66,11 @@ export class CombatResolver {
         let areaData = null;
 
         if(areaType === 'dungeon') {
-            areaData = game.dungeonDisplayOrder.find(d => d.id === areaId);
+            areaData = this._getArea('dungeon').find(d => d.id === areaId);
         } else if(areaType === 'slayer') {
-            areaData = game.slayerAreaDisplayOrder.find(d => d.id === areaId);
+            areaData = this._getArea('slayer').find(d => d.id === areaId);
         } else {
-            areaData = game.combatAreaDisplayOrder.find(d => d.id === areaId);
+            areaData = this._getArea('combat').find(d => d.id === areaId);
         }
 
         this._log(areaData);
@@ -134,7 +136,7 @@ export class CombatResolver {
         let areaData = null;
 
         if(areaType === 'slayer') {
-            areaData = game.slayerAreaDisplayOrder.find(d => d.id === areaId);
+            areaData = this._getArea('slayer').find(d => d.id === areaId);
 
             if(areaData instanceof SlayerArea) {
                 const slayerLevelReq = areaData.slayerLevelRequired;
@@ -153,7 +155,7 @@ export class CombatResolver {
                 }
             }
         } else {
-            areaData = game.combatAreaDisplayOrder.find(d => d.id === areaId);
+            areaData = this._getArea('combat').find(d => d.id === areaId);
         }
 
         if(game.combat.fightInProgress || game.combat.isActive) {
@@ -241,7 +243,7 @@ export class CombatResolver {
             return;
         }
 
-        const areas = [...game.combatAreaDisplayOrder, ...game.slayerAreaDisplayOrder, ...game.dungeonDisplayOrder];
+        const areas = this._getAreas();
 
         let widMonsters = [];
 
@@ -322,6 +324,64 @@ export class CombatResolver {
         this.pendingRecalculation = false;
         this.renderer._reRender();
     }
+
+	_getAreas() {
+		if(this.areasCache !== null) return this.areasCache;
+
+		const areasRoot = game.combatAreaCategories.allObjects;
+		const areas = [];
+
+		areasRoot.forEach(a => {
+			areas.push(...[...a.areas]);
+		})
+
+		this.areasCache = areas;
+
+		return areas;
+	}
+
+	_getArea(type) {
+
+		let areaRoot = null;
+
+		switch(type) {
+			case "combat":
+				areaRoot = game.combatAreaCategories.allObjects.find(a => a._localID === 'CombatAreas')
+				break;
+			case "dungeon":
+				areaRoot = game.combatAreaCategories.allObjects.find(a => a._localID === 'Dungeons')
+				break;
+			case "slayer":
+				areaRoot = game.combatAreaCategories.allObjects.find(a => a._localID === 'SlayerAreas')
+				break;
+			case "stronghold":
+				areaRoot = game.combatAreaCategories.allObjects.find(a => a._localID === 'Strongholds')
+				break;
+			case "abyssalcombat":
+				areaRoot = game.combatAreaCategories.allObjects.find(a => a._localID === 'AbyssalCombatAreas')
+				break;
+			case "abyssalslayer":
+				areaRoot = game.combatAreaCategories.allObjects.find(a => a._localID === 'AbyssalSlayerAreas')
+				break;
+			case "abyssalstronghold":
+				areaRoot = game.combatAreaCategories.allObjects.find(a => a._localID === 'AbyssalStrongholds')
+				break;	
+			case "abyss":
+				areaRoot = game.combatAreaCategories.allObjects.find(a => a._localID === 'TheAbyss')
+				break;
+			default:
+				break;
+		}
+
+		if(!areaRoot) {
+			this._log(`Will I Die?: _getArea() areaRoot was null!`);
+			return [];
+		}
+
+		const areas = [...[...areaRoot.areas]];
+
+		return areas;
+	}
 
     _getMonsterSelection(tier) {
 
